@@ -1,0 +1,242 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ice_cream_pos/models/product.dart';
+import 'package:ice_cream_pos/providers/product_provider.dart';
+import 'package:ice_cream_pos/core/utils.dart';
+
+class ProductsScreen extends ConsumerWidget {
+  const ProductsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final productsState = ref.watch(productProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Product Management', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ElevatedButton.icon(
+              onPressed: () => _showAddProductDialog(context, ref),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Product'),
+            ),
+          ),
+        ],
+      ),
+      body: productsState.when(
+        data: (products) {
+          if (products.isEmpty) {
+            return const Center(child: Text('No products. Click "Add Product" to create one.', style: TextStyle(fontSize: 20)));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
+                  leading: product.imagePath != null && File(product.imagePath!).existsSync()
+                      ? Image.file(File(product.imagePath!), width: 80, height: 80, fit: BoxFit.cover)
+                      : Container(
+                          width: 80,
+                          height: 80,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.icecream, size: 40, color: Colors.grey),
+                        ),
+                  title: Text(product.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Category: ${product.category} | Price: \$${product.price.toStringAsFixed(2)} | Stock: ${product.stock}', style: const TextStyle(fontSize: 18)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue, size: 32),
+                        onPressed: () => _showAddProductDialog(context, ref, product: product),
+                      ),
+                      const SizedBox(width: 16),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red, size: 32),
+                        onPressed: () => _confirmDelete(context, ref, product),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, st) => Center(child: Text('Error: $e')),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Product?'),
+        content: Text('Are you sure you want to delete ${product.name}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              ref.read(productProvider.notifier).deleteProduct(product.id!);
+              Navigator.pop(context);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddProductDialog(BuildContext context, WidgetRef ref, {Product? product}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _AddProductDialog(product: product),
+    );
+  }
+}
+
+class _AddProductDialog extends ConsumerStatefulWidget {
+  final Product? product;
+  const _AddProductDialog({this.product});
+
+  @override
+  ConsumerState<_AddProductDialog> createState() => _AddProductDialogState();
+}
+
+class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _categoryController;
+  late TextEditingController _priceController;
+  late TextEditingController _stockController;
+  String? _imagePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.product?.name ?? '');
+    _categoryController = TextEditingController(text: widget.product?.category ?? 'Ice Cream');
+    _priceController = TextEditingController(text: widget.product?.price.toString() ?? '');
+    _stockController = TextEditingController(text: widget.product?.stock.toString() ?? '0');
+    _imagePath = widget.product?.imagePath;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _categoryController.dispose();
+    _priceController.dispose();
+    _stockController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.product == null ? 'Add New Product' : 'Edit Product'),
+      content: SizedBox(
+        width: 500,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    final path = await AppUtils.pickAndSaveImage();
+                    if (path != null) {
+                      setState(() {
+                        _imagePath = path;
+                      });
+                    }
+                  },
+                  child: Container(
+                    height: 150,
+                    width: 150,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: _imagePath != null && File(_imagePath!).existsSync()
+                        ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(_imagePath!), fit: BoxFit.cover))
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_a_photo, size: 48, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text('Select Image'),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Product Name'),
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _categoryController,
+                  decoration: const InputDecoration(labelText: 'Category (e.g. Ice Cream, Drinks)'),
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _priceController,
+                  decoration: const InputDecoration(labelText: 'Price'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) => v!.isEmpty || double.tryParse(v) == null ? 'Enter valid price' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _stockController,
+                  decoration: const InputDecoration(labelText: 'Initial Stock'),
+                  keyboardType: TextInputType.number,
+                  validator: (v) => v!.isEmpty || int.tryParse(v) == null ? 'Enter valid stock' : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(fontSize: 18))),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              final product = Product(
+                id: widget.product?.id,
+                name: _nameController.text,
+                category: _categoryController.text,
+                price: double.parse(_priceController.text),
+                stock: int.parse(_stockController.text),
+                imagePath: _imagePath,
+              );
+
+              if (widget.product == null) {
+                ref.read(productProvider.notifier).addProduct(product);
+              } else {
+                ref.read(productProvider.notifier).updateProduct(product);
+              }
+              Navigator.pop(context);
+            }
+          },
+          child: const Text('Save', style: TextStyle(fontSize: 18)),
+        ),
+      ],
+    );
+  }
+}
