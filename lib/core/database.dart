@@ -91,7 +91,7 @@ class DatabaseHelper {
 
     // Insert default PIN
     await db.execute('''
-      INSERT INTO settings (owner_pin) VALUES ('1234')
+      INSERT INTO settings (owner_pin) VALUES ('1978')
     ''');
   }
 }

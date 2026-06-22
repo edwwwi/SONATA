@@ -18,12 +18,18 @@ class CartNotifier extends Notifier<List<CartItem>> {
 
   void addProduct(Product product) {
     final existingIndex = state.indexWhere((item) => item.product.id == product.id);
+    if (existingIndex < 0) {
+      // Only add if not already in cart
+      state = [...state, CartItem(product: product)];
+    }
+  }
+
+  void increaseQuantity(Product product) {
+    final existingIndex = state.indexWhere((item) => item.product.id == product.id);
     if (existingIndex >= 0) {
       final updatedList = List<CartItem>.from(state);
       updatedList[existingIndex].quantity += 1;
       state = updatedList;
-    } else {
-      state = [...state, CartItem(product: product)];
     }
   }
 
