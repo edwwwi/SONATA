@@ -23,7 +23,7 @@ class SaleItem {
     };
   }
 
-  /////
+  ////////
   factory SaleItem.fromMap(Map<String, dynamic> map) {
     return SaleItem(
       id: map['id'],
