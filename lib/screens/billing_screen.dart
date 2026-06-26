@@ -63,15 +63,128 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   }
 
 
+  void _showCheckoutModal(BuildContext context, List<dynamic> cartItems, double subtotal) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final now = DateTime.now();
+        final formattedDate = DateFormat('yyyy-MM-dd').format(now);
+        final formattedTime = DateFormat('HH:mm').format(now);
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'FINAL BILL',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                ),
+                const SizedBox(height: 8),
+                const Text('Sonata Ice Cream', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                const Divider(height: 32, thickness: 1),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Date: $formattedDate', style: const TextStyle(color: Colors.black54)),
+                    Text('Time: $formattedTime', style: const TextStyle(color: Colors.black54)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: cartItems.length,
+                    itemBuilder: (context, index) {
+                      final item = cartItems[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item.product.name} x${item.quantity}',
+                                style: const TextStyle(fontSize: 16),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              '₹${item.totalPrice.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const Divider(height: 32, thickness: 1),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total Amount', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('₹${subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context); // Go back
+                        },
+                        child: const Text('Add More', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context); // Close modal
+                          await ref.read(salesProvider.notifier).completeSale();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                              content: Text('Sale Completed Successfully!'),
+                              backgroundColor: Colors.green,
+                            ));
+                          }
+                        },
+                        child: const Text('Checkout', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final productsState = ref.watch(productProvider);
     final cartItems = ref.watch(cartProvider);
     final subtotal = ref.watch(cartProvider.notifier).subtotal;
-    
-    final taxes = subtotal * 0.10;
-    final discount = subtotal > 50 ? 5.63 : 0.0;
-    final totalPayment = subtotal + taxes - discount;
 
     return Row(
       children: [
@@ -481,8 +594,6 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                         Text('(${item.quantity})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
                                       ],
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text('Notes: None  •  Size: Regular', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
                                     const SizedBox(height: 8),
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -516,42 +627,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                 ),
                 child: Column(
                   children: [
-                    _buildTotalRow('Subtotal', '₹${subtotal.toStringAsFixed(2)}'),
-                    const SizedBox(height: 12),
-                    _buildTotalRow('Taxes', '₹${taxes.toStringAsFixed(2)}'),
-                    const SizedBox(height: 12),
-                    _buildTotalRow('Discount', '-₹${discount.toStringAsFixed(2)}', color: Colors.green),
-                    const SizedBox(height: 16),
-                    _buildTotalRow('Total Payment', '₹${totalPayment.toStringAsFixed(2)}', isBold: true),
+                    _buildTotalRow('Total Payment', '₹${subtotal.toStringAsFixed(2)}', isBold: true),
                     const SizedBox(height: 24),
-                    _buildDropdownRow('Order Type', 'Dine-in'),
-                    const SizedBox(height: 12),
-                    _buildDropdownRow('Select Table', 'A-12B'),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.card_giftcard, size: 16),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('10% Discount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                Text('Minimum Buy ₹50.00', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                              ],
-                            ),
-                          ),
-                          Icon(Icons.circle, size: 8, color: Colors.black),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -562,14 +639,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        onPressed: cartItems.isEmpty ? null : () async {
-                          await ref.read(salesProvider.notifier).completeSale();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Sale Completed Successfully!'),
-                              backgroundColor: Colors.green,
-                            ));
-                          }
+                        onPressed: cartItems.isEmpty ? null : () {
+                          _showCheckoutModal(context, cartItems, subtotal);
                         },
                         child: const Text('Confirm Payment', style: TextStyle(fontWeight: FontWeight.w500)),
                       ),
@@ -594,19 +665,5 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     );
   }
 
-  Widget _buildDropdownRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
-        Row(
-          children: [
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down, size: 16),
-          ],
-        ),
-      ],
-    );
-  }
+
 }

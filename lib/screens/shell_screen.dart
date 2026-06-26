@@ -14,16 +14,13 @@ class ShellScreen extends ConsumerStatefulWidget {
 }
 
 class _ShellScreenState extends ConsumerState<ShellScreen> {
-  int _selectedIndex = 1; // 1 is Menu Order (Billing) by default
+  int _selectedIndex = 0; // 0 is Billing by default
 
   final List<Widget> _screens = [
-    const Center(child: Text('Dashboard Placeholder')), // 0: Dashboard
-    const BillingScreen(),                              // 1: Menu Order
-    const ReportsScreen(),                              // 2: Analytics
-    const StockScreen(),                                // 3: Withdrawal (Stock)
-    const Center(child: Text('Manage Table')),          // 4: Manage Table
-    const ProductsScreen(),                             // 5: Manage Dish (Products)
-    const Center(child: Text('Manage Payment')),        // 6: Manage Payment
+    const BillingScreen(),
+    const ProductsScreen(),
+    const StockScreen(),
+    const ReportsScreen(),
   ];
 
   void _showAdminLoginDialog(int targetIndex) {
@@ -92,8 +89,8 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
     final isSelected = _selectedIndex == index;
     return InkWell(
       onTap: isExpandable ? null : () {
-        // Mocking auth requirement for Analytics(2), Stock(3), Products(5)
-        final requiresAuth = (index == 2 || index == 3 || index == 5);
+        // Mocking auth requirement for Stock(2) and Reports(3)
+        final requiresAuth = (index == 2 || index == 3);
         final isAuth = ref.read(authProvider).value ?? false;
         _onMenuTapped(index, requiresAuth, isAuth);
       },
@@ -159,31 +156,25 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
                   child: ListView(
                     padding: EdgeInsets.zero,
                     children: [
-                      _buildNavItem('Dashboard', Icons.grid_view, 0),
-                      _buildNavItem('Menu Order', Icons.restaurant_menu, 1),
-                      _buildNavItem('Analytics', Icons.bar_chart, 2),
-                      _buildNavItem('Withdrawal', Icons.account_balance_wallet_outlined, 3),
+                      _buildNavItem('Billing', Icons.point_of_sale, 0),
+                      _buildNavItem('Products Search', Icons.icecream, 1),
                       const SizedBox(height: 16),
-                      _buildNavItem('Manage Table', Icons.table_restaurant_outlined, 4, isExpandable: true),
-                      // Mocking sub items visually
-                      _buildNavItem('Booked', Icons.circle, -1, isSubItem: true),
-                      _buildNavItem('Actived', Icons.check_circle_outline, -2, isSubItem: true),
-                      _buildNavItem('Running Order', Icons.list_alt, -3, isSubItem: true),
-                      
-                      const SizedBox(height: 16),
-                      _buildNavItem('Manage Dish', Icons.fastfood_outlined, 5, isExpandable: true),
-                      _buildNavItem('Manage Payment', Icons.payment_outlined, 6),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                        child: Text('ADMIN ONLY', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      _buildNavItem('Stock Inventory', Icons.inventory, 2),
+                      _buildNavItem('Reports', Icons.bar_chart, 3),
                     ],
                   ),
                 ),
-                // Footer (Settings & Logout)
+                // Footer (Logout)
                 const Divider(),
-                _buildNavItem('Settings', Icons.settings_outlined, 7),
                 InkWell(
                   onTap: () {
                     ref.read(authProvider.notifier).logout();
                     setState(() {
-                      _selectedIndex = 1; // Revert to menu order
+                      _selectedIndex = 0; // Revert to billing
                     });
                   },
                   child: Container(
@@ -205,7 +196,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
           
           // Main Content Area
           Expanded(
-            child: _screens[_selectedIndex >= 0 && _selectedIndex < _screens.length ? _selectedIndex : 1],
+            child: _screens[_selectedIndex >= 0 && _selectedIndex < _screens.length ? _selectedIndex : 0],
           ),
         ],
       ),
