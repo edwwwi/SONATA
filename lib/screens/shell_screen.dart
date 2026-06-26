@@ -14,23 +14,19 @@ class ShellScreen extends ConsumerStatefulWidget {
 }
 
 class _ShellScreenState extends ConsumerState<ShellScreen> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1; // 1 is Menu Order (Billing) by default
 
   final List<Widget> _screens = [
-    const BillingScreen(),
-    const ProductsScreen(),
-    const StockScreen(),
-    const ReportsScreen(),
+    const Center(child: Text('Dashboard Placeholder')), // 0: Dashboard
+    const BillingScreen(),                              // 1: Menu Order
+    const ReportsScreen(),                              // 2: Analytics
+    const StockScreen(),                                // 3: Withdrawal (Stock)
+    const Center(child: Text('Manage Table')),          // 4: Manage Table
+    const ProductsScreen(),                             // 5: Manage Dish (Products)
+    const Center(child: Text('Manage Payment')),        // 6: Manage Payment
   ];
 
-  final List<String> _titles = [
-    'Billing',
-    'Products',
-    'Stock Inventory',
-    'Reports',
-  ];
-
-  void _showAdminLoginDialog() {
+  void _showAdminLoginDialog(int targetIndex) {
     final pinController = TextEditingController();
     showDialog(
       context: context,
@@ -46,7 +42,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
             ),
             keyboardType: TextInputType.number,
             autofocus: true,
-            onSubmitted: (val) => _submitPin(pinController.text),
+            onSubmitted: (val) => _submitPin(pinController.text, targetIndex),
           ),
           actions: [
             TextButton(
@@ -54,7 +50,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () => _submitPin(pinController.text),
+              onPressed: () => _submitPin(pinController.text, targetIndex),
               child: const Text('Login'),
             ),
           ],
@@ -63,129 +59,156 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
     );
   }
 
-  Future<void> _submitPin(String pin) async {
+  Future<void> _submitPin(String pin, int targetIndex) async {
     final success = await ref.read(authProvider.notifier).verifyPin(pin);
     if (mounted) {
-      Navigator.pop(context); // Close dialog
+      Navigator.pop(context);
       if (success) {
+        setState(() {
+          _selectedIndex = targetIndex;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Admin access granted',
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('Admin access granted', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid PIN', style: TextStyle(color: Colors.white)),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('Invalid PIN', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isAuth = ref.watch(authProvider).value ?? false;
+  void _onMenuTapped(int index, bool requiresAuth, bool isAuth) {
+    if (requiresAuth && !isAuth) {
+      _showAdminLoginDialog(index);
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
+  }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
-        actions: [
-          if (!isAuth)
-            TextButton.icon(
-              icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-              label: const Text('Admin', style: TextStyle(color: Colors.white)),
-              onPressed: _showAdminLoginDialog,
-            )
-          else
-            TextButton.icon(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              label: const Text(
-                'Logout',
-                style: TextStyle(color: Colors.white),
-              ),
-              onPressed: () {
-                ref.read(authProvider.notifier).logout();
-                setState(() {
-                  _selectedIndex = 0; // Redirect to billing
-                });
-              },
-            ),
-        ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+  Widget _buildNavItem(String title, IconData icon, int index, {bool isSubItem = false, bool isExpandable = false}) {
+    final isSelected = _selectedIndex == index;
+    return InkWell(
+      onTap: isExpandable ? null : () {
+        // Mocking auth requirement for Analytics(2), Stock(3), Products(5)
+        final requiresAuth = (index == 2 || index == 3 || index == 5);
+        final isAuth = ref.read(authProvider).value ?? false;
+        _onMenuTapped(index, requiresAuth, isAuth);
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: isSubItem ? 32 : 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1E293B) : Colors.transparent, // Dark slate if selected
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
           children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color.fromARGB(255, 255, 255, 255),
-              ),
-              child: Center(
-                child: Image.asset(
-                  'assets/images/sonata-icecream-logo.png',
-                  fit: BoxFit.contain,
+            Icon(icon, color: isSelected ? Colors.white : Colors.grey[600], size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey[800],
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 14,
                 ),
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.point_of_sale),
-              title: const Text('Billing'),
-              selected: _selectedIndex == 0,
-              onTap: () {
-                setState(() => _selectedIndex = 0);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.icecream),
-              title: const Text('Products Search'),
-              selected: _selectedIndex == 1,
-              onTap: () {
-                setState(() => _selectedIndex = 1);
-                Navigator.pop(context);
-              },
-            ),
-            if (isAuth) ...[
-              const Divider(),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Text(
-                  'Admin Only',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.inventory),
-                title: const Text('Stock Inventory'),
-                selected: _selectedIndex == 2,
-                onTap: () {
-                  setState(() => _selectedIndex = 2);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.bar_chart),
-                title: const Text('Reports'),
-                selected: _selectedIndex == 3,
-                onTap: () {
-                  setState(() => _selectedIndex = 3);
-                  Navigator.pop(context);
-                },
-              ),
-            ],
+            if (isExpandable) Icon(Icons.keyboard_arrow_down, color: Colors.grey[600], size: 20),
           ],
         ),
       ),
-      body: _screens[_selectedIndex],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9), // Light background like Pospay
+      body: Row(
+        children: [
+          // Sidebar
+          Container(
+            width: 250,
+            color: Colors.white,
+            child: Column(
+              children: [
+                // Logo Section
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Row(
+                    children: [
+                      Image.asset('assets/images/sonata-icecream-logo.png', height: 40, width: 40, fit: BoxFit.contain),
+                      const SizedBox(width: 12),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Sonata POS', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text('Cashier Daily Assistant', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Navigation Items
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _buildNavItem('Dashboard', Icons.grid_view, 0),
+                      _buildNavItem('Menu Order', Icons.restaurant_menu, 1),
+                      _buildNavItem('Analytics', Icons.bar_chart, 2),
+                      _buildNavItem('Withdrawal', Icons.account_balance_wallet_outlined, 3),
+                      const SizedBox(height: 16),
+                      _buildNavItem('Manage Table', Icons.table_restaurant_outlined, 4, isExpandable: true),
+                      // Mocking sub items visually
+                      _buildNavItem('Booked', Icons.circle, -1, isSubItem: true),
+                      _buildNavItem('Actived', Icons.check_circle_outline, -2, isSubItem: true),
+                      _buildNavItem('Running Order', Icons.list_alt, -3, isSubItem: true),
+                      
+                      const SizedBox(height: 16),
+                      _buildNavItem('Manage Dish', Icons.fastfood_outlined, 5, isExpandable: true),
+                      _buildNavItem('Manage Payment', Icons.payment_outlined, 6),
+                    ],
+                  ),
+                ),
+                // Footer (Settings & Logout)
+                const Divider(),
+                _buildNavItem('Settings', Icons.settings_outlined, 7),
+                InkWell(
+                  onTap: () {
+                    ref.read(authProvider.notifier).logout();
+                    setState(() {
+                      _selectedIndex = 1; // Revert to menu order
+                    });
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: Colors.grey[600], size: 20),
+                        const SizedBox(width: 12),
+                        Text('Logout', style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w500, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+          
+          // Main Content Area
+          Expanded(
+            child: _screens[_selectedIndex >= 0 && _selectedIndex < _screens.length ? _selectedIndex : 1],
+          ),
+        ],
+      ),
     );
   }
 }
