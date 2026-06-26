@@ -69,11 +69,20 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
       Navigator.pop(context); // Close dialog
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Admin access granted', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text(
+              'Admin access granted',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid PIN', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('Invalid PIN', style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -96,7 +105,10 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
           else
             TextButton.icon(
               icon: const Icon(Icons.logout, color: Colors.white),
-              label: const Text('Logout', style: TextStyle(color: Colors.white)),
+              label: const Text(
+                'Logout',
+                style: TextStyle(color: Colors.white),
+              ),
               onPressed: () {
                 ref.read(authProvider.notifier).logout();
                 setState(() {
@@ -110,11 +122,15 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Text(
-                'POS System',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                color: Color.fromARGB(255, 255, 255, 255),
+              ),
+              child: Center(
+                child: Image.asset(
+                  'assets/images/sonata-icecream-logo.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
             ListTile(
@@ -139,7 +155,13 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
               const Divider(),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Text('Admin Only', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Admin Only',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               ListTile(
                 leading: const Icon(Icons.inventory),
