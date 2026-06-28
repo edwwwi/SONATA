@@ -52,7 +52,9 @@ class _PinScreenState extends ConsumerState<_PinScreen> {
         _pin = '';
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Incorrect PIN')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Incorrect PIN')));
       }
     }
   }
@@ -63,7 +65,10 @@ class _PinScreenState extends ConsumerState<_PinScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('Enter Owner PIN', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+          const Text(
+            'Enter Owner PIN',
+            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -110,7 +115,10 @@ class _PinScreenState extends ConsumerState<_PinScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Center(
-          child: Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );
@@ -126,7 +134,10 @@ class _ReportsDashboard extends ConsumerWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Reports Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Reports Dashboard',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.logout),
@@ -143,11 +154,7 @@ class _ReportsDashboard extends ConsumerWidget {
           ),
         ),
         body: const TabBarView(
-          children: [
-            _DailySalesTab(),
-            _SalesHistoryTab(),
-            _StockReportTab(),
-          ],
+          children: [_DailySalesTab(), _SalesHistoryTab(), _StockReportTab()],
         ),
       ),
     );
@@ -165,21 +172,42 @@ class _DailySalesTab extends ConsumerWidget {
     return salesState.when(
       data: (sales) {
         final today = DateTime.now();
-        final todaySales = sales.where((s) => s.createdAt.year == today.year && s.createdAt.month == today.month && s.createdAt.day == today.day).toList();
-        final totalAmount = todaySales.fold(0.0, (sum, item) => sum + item.totalAmount);
+        final todaySales = sales
+            .where(
+              (s) =>
+                  s.createdAt.year == today.year &&
+                  s.createdAt.month == today.month &&
+                  s.createdAt.day == today.day,
+            )
+            .toList();
+        final totalAmount = todaySales.fold(
+          0.0,
+          (sum, item) => sum + item.totalAmount,
+        );
 
         return Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Date: ${DateFormat('yyyy-MM-dd').format(today)}', style: const TextStyle(fontSize: 24)),
+              Text(
+                'Date: ${DateFormat('yyyy-MM-dd').format(today)}',
+                style: const TextStyle(fontSize: 24),
+              ),
               const SizedBox(height: 32),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildStatCard('Total Bills', todaySales.length.toString(), Colors.blue),
-                  _buildStatCard('Total Sales', '\$${totalAmount.toStringAsFixed(2)}', Colors.green),
+                  _buildStatCard(
+                    'Total Bills',
+                    todaySales.length.toString(),
+                    Colors.blue,
+                  ),
+                  _buildStatCard(
+                    'Total Sales',
+                    '\$${totalAmount.toStringAsFixed(2)}',
+                    Colors.green,
+                  ),
                 ],
               ),
               const Spacer(),
@@ -190,7 +218,10 @@ class _DailySalesTab extends ConsumerWidget {
                     onPressed: () async {
                       final products = ref.read(productProvider).value ?? [];
                       await ExportUtils.exportDailyReportPdf(sales, products);
-                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PDF Exported')));
+                      if (context.mounted)
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('PDF Exported')),
+                        );
                     },
                     icon: const Icon(Icons.picture_as_pdf),
                     label: const Text('Export PDF'),
@@ -199,7 +230,10 @@ class _DailySalesTab extends ConsumerWidget {
                   ElevatedButton.icon(
                     onPressed: () async {
                       await ExportUtils.exportSalesCsv(todaySales);
-                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV Exported')));
+                      if (context.mounted)
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('CSV Exported')),
+                        );
                     },
                     icon: const Icon(Icons.table_chart),
                     label: const Text('Export CSV'),
@@ -224,9 +258,19 @@ class _DailySalesTab extends ConsumerWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            Text(title, style: const TextStyle(fontSize: 20, color: Colors.grey)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, color: Colors.grey),
+            ),
             const SizedBox(height: 16),
-            Text(value, style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: color)),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
           ],
         ),
       ),
@@ -234,6 +278,7 @@ class _DailySalesTab extends ConsumerWidget {
   }
 }
 
+// DB
 class _SalesHistoryTab extends ConsumerWidget {
   const _SalesHistoryTab();
 
@@ -244,7 +289,9 @@ class _SalesHistoryTab extends ConsumerWidget {
     return salesState.when(
       data: (sales) {
         if (sales.isEmpty) {
-          return const Center(child: Text('No sales history.', style: TextStyle(fontSize: 20)));
+          return const Center(
+            child: Text('No sales history.', style: TextStyle(fontSize: 20)),
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -254,9 +301,21 @@ class _SalesHistoryTab extends ConsumerWidget {
             return Card(
               child: ListTile(
                 leading: const Icon(Icons.receipt_long, size: 40),
-                title: Text('Bill: ${sale.billNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('Date: ${DateFormat('yyyy-MM-dd HH:mm').format(sale.createdAt)}'),
-                trailing: Text('\$${sale.totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
+                title: Text(
+                  'Bill: ${sale.billNumber}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  'Date: ${DateFormat('yyyy-MM-dd HH:mm').format(sale.createdAt)}',
+                ),
+                trailing: Text(
+                  '\$${sale.totalAmount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
               ),
             );
           },
@@ -287,7 +346,10 @@ class _StockReportTab extends ConsumerWidget {
                   ElevatedButton.icon(
                     onPressed: () async {
                       await ExportUtils.exportStockCsv(products);
-                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stock CSV Exported')));
+                      if (context.mounted)
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Stock CSV Exported')),
+                        );
                     },
                     icon: const Icon(Icons.table_chart),
                     label: const Text('Export Stock CSV'),
@@ -303,9 +365,19 @@ class _StockReportTab extends ConsumerWidget {
                   final product = products[index];
                   return Card(
                     child: ListTile(
-                      title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(
+                        product.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       subtitle: Text('Category: ${product.category}'),
-                      trailing: Text('Stock: ${product.stock}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: product.stock < 10 ? Colors.red : Colors.green)),
+                      trailing: Text(
+                        'Stock: ${product.stock}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: product.stock < 10 ? Colors.red : Colors.green,
+                        ),
+                      ),
                     ),
                   );
                 },
