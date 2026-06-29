@@ -6,7 +6,7 @@ import 'package:ice_cream_pos/providers/cart_provider.dart';
 import 'package:ice_cream_pos/providers/product_provider.dart';
 import 'package:ice_cream_pos/providers/stock_provider.dart';
 import 'package:uuid/uuid.dart';
-
+////SALES
 class SalesNotifier extends AsyncNotifier<List<Sale>> {
   @override
   Future<List<Sale>> build() async {
