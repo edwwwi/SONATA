@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -428,8 +427,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                     children: [
                                       Expanded(
                                         flex: 4,
-                                        child: product.imagePath != null && File(product.imagePath!).existsSync()
-                                            ? Image.file(File(product.imagePath!), fit: BoxFit.cover)
+                                        child: product.color != null
+                                            ? Container(color: Color(product.color!))
                                             : Container(
                                                 color: Colors.grey[200],
                                                 child: const Icon(Icons.icecream, size: 48, color: Colors.grey),
@@ -572,8 +571,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                   color: Colors.grey[200],
                                 ),
                                 clipBehavior: Clip.antiAlias,
-                                child: item.product.imagePath != null && File(item.product.imagePath!).existsSync()
-                                    ? Image.file(File(item.product.imagePath!), fit: BoxFit.cover)
+                                child: item.product.color != null
+                                    ? Container(color: Color(item.product.color!))
                                     : const Icon(Icons.image, color: Colors.grey),
                               ),
                               const SizedBox(width: 12),

@@ -31,8 +31,13 @@ class DatabaseHelper {
     return await databaseFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
         onCreate: _createDB,
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute('ALTER TABLE products ADD COLUMN color INTEGER');
+          }
+        },
       ),
     );
   }
@@ -46,7 +51,7 @@ class DatabaseHelper {
         category TEXT NOT NULL,
         price REAL NOT NULL,
         stock INTEGER NOT NULL,
-        image_path TEXT
+        color INTEGER
       )
     ''');
 

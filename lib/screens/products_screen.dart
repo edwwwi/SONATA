@@ -1,9 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ice_cream_pos/models/product.dart';
 import 'package:ice_cream_pos/providers/product_provider.dart';
-import 'package:ice_cream_pos/core/utils.dart';
 
 class ProductsScreen extends ConsumerWidget {
   const ProductsScreen({super.key});
@@ -75,8 +73,8 @@ class ProductsScreen extends ConsumerWidget {
                           color: Colors.grey[200],
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: product.imagePath != null && File(product.imagePath!).existsSync()
-                            ? Image.file(File(product.imagePath!), fit: BoxFit.cover)
+                        child: product.color != null
+                            ? Container(color: Color(product.color!))
                             : const Icon(Icons.icecream, size: 40, color: Colors.grey),
                       ),
                       const SizedBox(width: 16),
@@ -195,7 +193,14 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
   late TextEditingController _categoryController;
   late TextEditingController _priceController;
   late TextEditingController _stockController;
-  String? _imagePath;
+  int? _selectedColor;
+  final List<Color> _availableColors = [
+    Colors.red, Colors.pink, Colors.purple, Colors.deepPurple,
+    Colors.indigo, Colors.blue, Colors.lightBlue, Colors.cyan,
+    Colors.teal, Colors.green, Colors.lightGreen, Colors.lime,
+    Colors.yellow, Colors.amber, Colors.orange, Colors.deepOrange,
+    Colors.brown, Colors.grey, Colors.blueGrey, Colors.black,
+  ];
 
   @override
   void initState() {
@@ -204,7 +209,7 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
     _categoryController = TextEditingController(text: widget.product?.category ?? 'Ice Cream');
     _priceController = TextEditingController(text: widget.product?.price.toString() ?? '');
     _stockController = TextEditingController(text: widget.product?.stock.toString() ?? '0');
-    _imagePath = widget.product?.imagePath;
+    _selectedColor = widget.product?.color;
   }
 
   @override
@@ -228,34 +233,34 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                GestureDetector(
-                  onTap: () async {
-                    final path = await AppUtils.pickAndSaveImage();
-                    if (path != null) {
-                      setState(() {
-                        _imagePath = path;
-                      });
-                    }
-                  },
-                  child: Container(
-                    height: 150,
-                    width: 150,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: _imagePath != null && File(_imagePath!).existsSync()
-                        ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(_imagePath!), fit: BoxFit.cover))
-                        : const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_a_photo, size: 48, color: Colors.grey),
-                              SizedBox(height: 8),
-                              Text('Select Image'),
-                            ],
-                          ),
-                  ),
+                const Text('Select Product Color', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _availableColors.map((color) {
+                    final isSelected = _selectedColor == color.toARGB32();
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedColor = color.toARGB32();
+                        });
+                      },
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
+                          boxShadow: [
+                            if (isSelected) BoxShadow(color: Colors.black26, blurRadius: 4, spreadRadius: 1)
+                          ],
+                        ),
+                        child: isSelected ? const Icon(Icons.check, color: Colors.white) : null,
+                      ),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
@@ -299,7 +304,7 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
                 category: _categoryController.text,
                 price: double.parse(_priceController.text),
                 stock: int.parse(_stockController.text),
-                imagePath: _imagePath,
+                color: _selectedColor,
               );
 
               if (widget.product == null) {
