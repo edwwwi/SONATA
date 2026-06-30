@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ice_cream_pos/models/stock_movement.dart';
 import 'package:ice_cream_pos/providers/database_provider.dart';
 import 'package:ice_cream_pos/providers/product_provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class StockNotifier extends AsyncNotifier<List<StockMovement>> {
   @override
@@ -17,38 +18,56 @@ class StockNotifier extends AsyncNotifier<List<StockMovement>> {
 
   Future<void> addStock(int productId, int quantity) async {
     final db = await ref.read(databaseProvider.future);
+    StockMovement? newMovement;
+
+    await db.transaction((txn) async {
+      final productMaps = await txn.query('products', where: 'id = ?', whereArgs: [productId]);
+      if (productMaps.isNotEmpty) {
+        final currentStock = productMaps.first['stock'] as int;
+        final productName = productMaps.first['name'] as String;
+        final newStock = currentStock + quantity;
+        
+        // Update product stock in DB
+        await txn.update('products', {'stock': newStock}, where: 'id = ?', whereArgs: [productId]);
+        
+        // Create movement record
+        final movement = StockMovement(
+          productId: productId,
+          productName: productName,
+          quantity: quantity,
+          previousStock: currentStock,
+          currentStock: newStock,
+          movementType: 'STOCK_IN',
+          remarks: 'Manual Stock Entry',
+          createdAt: DateTime.now(),
+        );
+        
+        final id = await txn.insert('stock_movements', movement.toMap());
+        newMovement = movement.copyWith(id: id);
+      }
+    });
     
-    // Create movement record
-    final movement = StockMovement(
-      productId: productId,
-      quantity: quantity,
-      movementType: 'IN',
-      createdAt: DateTime.now(),
-    );
-    final id = await db.insert('stock_movements', movement.toMap());
-    
-    // Update product stock in DB
-    final productMaps = await db.query('products', where: 'id = ?', whereArgs: [productId]);
-    if (productMaps.isNotEmpty) {
-      final currentStock = productMaps.first['stock'] as int;
-      await db.update('products', {'stock': currentStock + quantity}, where: 'id = ?', whereArgs: [productId]);
+    if (newMovement != null) {
+      // Refresh product provider and stock movements
+      ref.invalidate(productProvider);
+      state = AsyncValue.data([newMovement!, ...state.value ?? []]);
     }
-    
-    // Refresh product provider and stock movements
-    ref.invalidate(productProvider);
-    state = AsyncValue.data([movement.copyWith(id: id), ...state.value ?? []]);
   }
 
-  Future<void> recordSaleMovement(int productId, int quantity) async {
-    final db = await ref.read(databaseProvider.future);
+  Future<void> recordSaleMovement(Transaction txn, int productId, int quantity, String productName, int previousStock, int currentStock) async {
     final movement = StockMovement(
       productId: productId,
-      quantity: quantity,
-      movementType: 'OUT',
+      productName: productName,
+      quantity: -quantity, // Store as negative for sale
+      previousStock: previousStock,
+      currentStock: currentStock,
+      movementType: 'SALE',
+      remarks: 'Sold in Bill',
       createdAt: DateTime.now(),
     );
-    await db.insert('stock_movements', movement.toMap());
-    // Invalidate state to fetch new movements
+    await txn.insert('stock_movements', movement.toMap());
+    
+    // Invalidate state to fetch new movements after the transaction completes
     ref.invalidateSelf();
   }
 }

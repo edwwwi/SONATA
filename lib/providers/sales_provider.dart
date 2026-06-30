@@ -34,31 +34,55 @@ class SalesNotifier extends AsyncNotifier<List<Sale>> {
       createdAt: DateTime.now(),
     );
 
-    // Insert sale
-    final saleId = await db.insert('sales', sale.toMap());
+    int? finalSaleId;
 
-    // Insert sale items and update stock
-    for (var item in cartItems) {
-      final saleItem = SaleItem(
-        saleId: saleId,
-        productId: item.product.id!,
-        quantity: item.quantity,
-        price: item.product.price,
-      );
-      await db.insert('sale_items', saleItem.toMap());
+    await db.transaction((txn) async {
+      // Insert sale
+      final saleId = await txn.insert('sales', sale.toMap());
+      finalSaleId = saleId;
+
+      // Insert sale items and update stock
+      for (var item in cartItems) {
+        final saleItem = SaleItem(
+          saleId: saleId,
+          productId: item.product.id!,
+          quantity: item.quantity,
+          price: item.product.price,
+        );
+        await txn.insert('sale_items', saleItem.toMap());
+        
+        // Fetch current stock and update inside transaction
+        final productMaps = await txn.query('products', where: 'id = ?', whereArgs: [item.product.id!]);
+        if (productMaps.isNotEmpty) {
+          final currentStock = productMaps.first['stock'] as int;
+          final productName = productMaps.first['name'] as String;
+          final newStock = currentStock - item.quantity;
+          
+          await txn.update('products', {'stock': newStock}, where: 'id = ?', whereArgs: [item.product.id!]);
+          
+          // Record stock movement OUT inside transaction
+          await ref.read(stockProvider.notifier).recordSaleMovement(
+            txn, 
+            item.product.id!, 
+            item.quantity, 
+            productName, 
+            currentStock, 
+            newStock
+          );
+        }
+      }
+    });
+
+    if (finalSaleId != null) {
+      // Invalidate products to refresh the stock amounts in UI
+      ref.invalidate(productProvider);
       
-      // Reduce product stock in state and db
-      await ref.read(productProvider.notifier).reduceStock(item.product.id!, item.quantity);
+      // Clear cart
+      ref.read(cartProvider.notifier).clearCart();
       
-      // Record stock movement OUT
-      await ref.read(stockProvider.notifier).recordSaleMovement(item.product.id!, item.quantity);
+      // Update local sales state
+      state = AsyncValue.data([sale.copyWith(id: finalSaleId), ...state.value ?? []]);
     }
-
-    // Clear cart
-    ref.read(cartProvider.notifier).clearCart();
-    
-    // Update local sales state
-    state = AsyncValue.data([sale.copyWith(id: saleId), ...state.value ?? []]);
   }
   
   Future<List<SaleItem>> getSaleItems(int saleId) async {

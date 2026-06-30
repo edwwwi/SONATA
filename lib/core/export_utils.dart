@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:ice_cream_pos/models/sale.dart';
 import 'package:ice_cream_pos/models/product.dart';
+import 'package:ice_cream_pos/models/stock_movement.dart';
 import 'package:intl/intl.dart';
 
 class ExportUtils {
@@ -38,6 +39,79 @@ class ExportUtils {
     await _saveFile(
       csvData,
       "Stock_${DateFormat('yyyy_MM_dd').format(DateTime.now())}.csv",
+    );
+  }
+
+  static Future<void> exportStockMovementsCsv(List<StockMovement> movements) async {
+    List<List<dynamic>> rows = [];
+    rows.add(["Date", "Time", "Product", "Movement Type", "Quantity", "Previous Stock", "Current Stock", "Remarks"]);
+    for (var m in movements) {
+      rows.add([
+        DateFormat('dd MMM yyyy').format(m.createdAt),
+        DateFormat('HH:mm').format(m.createdAt),
+        m.productName,
+        m.movementType,
+        m.quantity > 0 ? '+${m.quantity}' : m.quantity.toString(),
+        m.previousStock,
+        m.currentStock,
+        m.remarks ?? '',
+      ]);
+    }
+
+    String csvData = const ListToCsvConverter().convert(rows);
+    await _saveFile(
+      csvData,
+      "StockHistory_${DateFormat('yyyy_MM_dd_HH_mm').format(DateTime.now())}.csv",
+    );
+  }
+
+  static Future<void> exportStockMovementsPdf(List<StockMovement> movements) async {
+    final pdf = pw.Document();
+    
+    // Split into chunks if too many rows for one page (TableHelper can handle page breaks if used correctly)
+    pdf.addPage(
+      pw.MultiPage(
+        build: (pw.Context context) {
+          return [
+            pw.Text(
+              'Stock Movement History',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+              style: const pw.TextStyle(fontSize: 12),
+            ),
+            pw.SizedBox(height: 24),
+            pw.TableHelper.fromTextArray(
+              context: context,
+              cellAlignment: pw.Alignment.centerLeft,
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              data: <List<String>>[
+                <String>['Date & Time', 'Product', 'Type', 'Qty', 'Prev', 'Curr', 'Remarks'],
+                ...movements.map(
+                  (m) => [
+                    DateFormat('dd MMM yy HH:mm').format(m.createdAt),
+                    m.productName,
+                    m.movementType,
+                    m.quantity > 0 ? '+${m.quantity}' : m.quantity.toString(),
+                    m.previousStock.toString(),
+                    m.currentStock.toString(),
+                    m.remarks ?? '',
+                  ],
+                ),
+              ],
+            ),
+          ];
+        },
+      ),
+    );
+
+    final bytes = await pdf.save();
+    await _saveFile(
+      bytes,
+      "StockHistory_${DateFormat('yyyy_MM_dd_HH_mm').format(DateTime.now())}.pdf",
+      isBytes: true,
     );
   }
 

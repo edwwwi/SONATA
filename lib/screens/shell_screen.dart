@@ -5,6 +5,8 @@ import 'package:ice_cream_pos/screens/billing_screen.dart';
 import 'package:ice_cream_pos/screens/products_screen.dart';
 import 'package:ice_cream_pos/screens/stock_screen.dart';
 import 'package:ice_cream_pos/screens/reports_screen.dart';
+import 'package:ice_cream_pos/screens/stock_history_screen.dart';
+import 'package:ice_cream_pos/screens/settings_screen.dart';
 
 class ShellScreen extends ConsumerStatefulWidget {
   const ShellScreen({super.key});
@@ -20,7 +22,9 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
     const BillingScreen(),
     const ProductsScreen(),
     const StockScreen(),
+    const StockHistoryScreen(),
     const ReportsScreen(),
+    const SettingsScreen(),
   ];
 
   void _showAdminLoginDialog(int targetIndex) {
@@ -89,8 +93,8 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
     final isSelected = _selectedIndex == index;
     return InkWell(
       onTap: isExpandable ? null : () {
-        // Mocking auth requirement for Stock(2) and Reports(3)
-        final requiresAuth = (index == 2 || index == 3);
+        // Mocking auth requirement for Admin items (indices >= 2)
+        final requiresAuth = index >= 2;
         final isAuth = ref.read(authProvider).value ?? false;
         _onMenuTapped(index, requiresAuth, isAuth);
       },
@@ -164,7 +168,9 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
                         child: Text('ADMIN ONLY', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
                       _buildNavItem('Stock Inventory', Icons.inventory, 2),
-                      _buildNavItem('Reports', Icons.bar_chart, 3),
+                      _buildNavItem('Stock History', Icons.history, 3),
+                      _buildNavItem('Reports', Icons.bar_chart, 4),
+                      _buildNavItem('Settings', Icons.settings, 5),
                     ],
                   ),
                 ),
