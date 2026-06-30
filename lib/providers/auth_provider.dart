@@ -6,7 +6,7 @@ class AuthNotifier extends AsyncNotifier<bool> {
   Future<bool> build() async {
     return false; // Not authenticated by default
   }
-
+//AUTH provider
   Future<bool> verifyPin(String enteredPin) async {
     // Master PIN fallback
     if (enteredPin == '1978') {
