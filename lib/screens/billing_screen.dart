@@ -199,71 +199,28 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                   color: Colors.white,
                   child: Row(
                     children: [
-                      const CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Colors.blueAccent,
-                        child: Text('HF', style: TextStyle(color: Colors.white, fontSize: 12)),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text("Hadid's Food", style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 24),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Row(
-                          children: [
-                            Text('Open'),
-                            SizedBox(width: 4),
-                            Icon(Icons.keyboard_arrow_down, size: 16),
-                          ],
-                        ),
-                      ),
                       const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                            const SizedBox(width: 8),
-                            Text(
-                              DateFormat('EEEE, d MMM yyyy \'at\' h:mm a').format(DateTime.now()),
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      StreamBuilder(
+                        stream: Stream.periodic(const Duration(seconds: 1)),
+                        builder: (context, snapshot) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.notifications_outlined, size: 20),
-                      ),
-                      const SizedBox(width: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Row(
-                          children: [
-                            CircleAvatar(radius: 10, backgroundColor: Colors.grey, child: Icon(Icons.person, size: 12, color: Colors.white)),
-                            SizedBox(width: 8),
-                            Text('Michael Olise', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            SizedBox(width: 4),
-                            Icon(Icons.keyboard_arrow_down, size: 16),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                                const SizedBox(width: 8),
+                                Text(
+                                  DateFormat('EEEE, d MMM yyyy \'at\' hh:mm:ss a').format(DateTime.now()),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
                       ),
                     ],
                   ),

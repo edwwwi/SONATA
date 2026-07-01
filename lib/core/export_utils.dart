@@ -42,9 +42,20 @@ class ExportUtils {
     );
   }
 
-  static Future<void> exportStockMovementsCsv(List<StockMovement> movements) async {
+  static Future<void> exportStockMovementsCsv(
+    List<StockMovement> movements,
+  ) async {
     List<List<dynamic>> rows = [];
-    rows.add(["Date", "Time", "Product", "Movement Type", "Quantity", "Previous Stock", "Current Stock", "Remarks"]);
+    rows.add([
+      "Date",
+      "Time",
+      "Product",
+      "Movement Type",
+      "Quantity",
+      "Previous Stock",
+      "Current Stock",
+      "Remarks",
+    ]);
     for (var m in movements) {
       rows.add([
         DateFormat('dd MMM yyyy').format(m.createdAt),
@@ -65,9 +76,11 @@ class ExportUtils {
     );
   }
 
-  static Future<void> exportStockMovementsPdf(List<StockMovement> movements) async {
+  static Future<void> exportStockMovementsPdf(
+    List<StockMovement> movements,
+  ) async {
     final pdf = pw.Document();
-    
+
     // Split into chunks if too many rows for one page (TableHelper can handle page breaks if used correctly)
     pdf.addPage(
       pw.MultiPage(
@@ -86,9 +99,19 @@ class ExportUtils {
             pw.TableHelper.fromTextArray(
               context: context,
               cellAlignment: pw.Alignment.centerLeft,
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey300,
+              ),
               data: <List<String>>[
-                <String>['Date & Time', 'Product', 'Type', 'Qty', 'Prev', 'Curr', 'Remarks'],
+                <String>[
+                  'Date & Time',
+                  'Product',
+                  'Type',
+                  'Qty',
+                  'Prev',
+                  'Curr',
+                  'Remarks',
+                ],
                 ...movements.map(
                   (m) => [
                     DateFormat('dd MMM yy HH:mm').format(m.createdAt),
@@ -169,7 +192,7 @@ class ExportUtils {
                 style: const pw.TextStyle(fontSize: 16),
               ),
               pw.Text(
-                'Total Sales Amount: \$${totalSales.toStringAsFixed(2)}',
+                'Total Sales Amount: Rs. ${totalSales.toStringAsFixed(2)}',
                 style: const pw.TextStyle(fontSize: 16),
               ),
               pw.SizedBox(height: 24),
