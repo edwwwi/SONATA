@@ -6,6 +6,7 @@ class Product {
   final double price;
   final int stock;
   final int? color;
+  final int minimumStock;
 
   Product({
     this.id,
@@ -15,6 +16,7 @@ class Product {
     required this.price,
     required this.stock,
     this.color,
+    this.minimumStock = 10,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class Product {
       'price': price,
       'stock': stock,
       'color': color,
+      'minimum_stock': minimumStock,
     };
   }
 
@@ -38,6 +41,7 @@ class Product {
       price: map['price'],
       stock: map['stock'],
       color: map['color'],
+      minimumStock: map['minimum_stock'] ?? 10,
     );
   }
 
@@ -49,6 +53,7 @@ class Product {
     double? price,
     int? stock,
     int? color,
+    int? minimumStock,
   }) {
     return Product(
       id: id ?? this.id,
@@ -58,6 +63,7 @@ class Product {
       price: price ?? this.price,
       stock: stock ?? this.stock,
       color: color ?? this.color,
+      minimumStock: minimumStock ?? this.minimumStock,
     );
   }
 }

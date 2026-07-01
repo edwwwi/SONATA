@@ -36,7 +36,7 @@ class DatabaseHelper {
     return await databaseFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 6,
         onCreate: _createDB,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -59,6 +59,28 @@ class DatabaseHelper {
               )
             ''');
           }
+          if (oldVersion < 4) {
+            await db.execute('ALTER TABLE products ADD COLUMN minimum_stock INTEGER NOT NULL DEFAULT 10');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_bill_number ON sales(bill_number)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_sale_items_product_id ON sale_items(product_id)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements(product_id)');
+          }
+          if (oldVersion < 5) {
+            await db.execute('ALTER TABLE settings ADD COLUMN telegram_enabled INTEGER NOT NULL DEFAULT 0');
+            await db.execute('ALTER TABLE settings ADD COLUMN telegram_bot_token TEXT');
+            await db.execute('ALTER TABLE settings ADD COLUMN telegram_chat_id TEXT');
+          }
+          if (oldVersion < 6) {
+            await db.execute('ALTER TABLE settings ADD COLUMN email_enabled INTEGER NOT NULL DEFAULT 0');
+            await db.execute('ALTER TABLE settings ADD COLUMN smtp_server TEXT');
+            await db.execute('ALTER TABLE settings ADD COLUMN smtp_port TEXT');
+            await db.execute('ALTER TABLE settings ADD COLUMN sender_email TEXT');
+            await db.execute('ALTER TABLE settings ADD COLUMN sender_password_encrypted TEXT');
+            await db.execute('ALTER TABLE settings ADD COLUMN recipient_email TEXT');
+            await db.execute('ALTER TABLE settings ADD COLUMN report_time TEXT');
+          }
         },
       ),
     );
@@ -73,7 +95,8 @@ class DatabaseHelper {
         category TEXT NOT NULL,
         price REAL NOT NULL,
         stock INTEGER NOT NULL,
-        color INTEGER
+        color INTEGER,
+        minimum_stock INTEGER NOT NULL DEFAULT 10
       )
     ''');
 
@@ -116,7 +139,17 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE settings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        owner_pin TEXT NOT NULL
+        owner_pin TEXT NOT NULL,
+        telegram_enabled INTEGER NOT NULL DEFAULT 0,
+        telegram_bot_token TEXT,
+        telegram_chat_id TEXT,
+        email_enabled INTEGER NOT NULL DEFAULT 0,
+        smtp_server TEXT,
+        smtp_port TEXT,
+        sender_email TEXT,
+        sender_password_encrypted TEXT,
+        recipient_email TEXT,
+        report_time TEXT
       )
     ''');
 
@@ -124,6 +157,13 @@ class DatabaseHelper {
     await db.execute('''
       INSERT INTO settings (owner_pin) VALUES ('1978')
     ''');
+
+    // Create Analytics Indexes
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_bill_number ON sales(bill_number)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_sale_items_product_id ON sale_items(product_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements(product_id)');
   }
 
   Future<void> _performDailyBackup(Directory appDocDir, String dbPath) async {
