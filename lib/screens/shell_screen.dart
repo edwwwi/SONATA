@@ -7,6 +7,7 @@ import 'package:ice_cream_pos/screens/stock_screen.dart';
 import 'package:ice_cream_pos/screens/reports_screen.dart';
 import 'package:ice_cream_pos/screens/stock_history_screen.dart';
 import 'package:ice_cream_pos/screens/settings_screen.dart';
+import 'package:ice_cream_pos/screens/analytics_dashboard_screen.dart';
 
 class ShellScreen extends ConsumerStatefulWidget {
   const ShellScreen({super.key});
@@ -21,6 +22,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
   final List<Widget> _screens = [
     const BillingScreen(),
     const ProductsScreen(),
+    const AnalyticsDashboardScreen(),
     const StockScreen(),
     const StockHistoryScreen(),
     const ReportsScreen(),
@@ -128,10 +130,16 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAuth = ref.watch(authProvider).value ?? false;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9), // Light background like Pospay
-      body: Row(
-        children: [
+      backgroundColor: const Color(0xFFF1F5F9),
+      body: Container(
+        decoration: BoxDecoration(
+          border: isAuth ? Border.all(color: Colors.red, width: 4) : null,
+        ),
+        child: Row(
+          children: [
           // Sidebar
           Container(
             width: 250,
@@ -161,41 +169,49 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
                     padding: EdgeInsets.zero,
                     children: [
                       _buildNavItem('Billing', Icons.point_of_sale, 0),
-                      _buildNavItem('Products Search', Icons.icecream, 1),
-                      const SizedBox(height: 16),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                        child: Text('ADMIN ONLY', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      _buildNavItem('Stock Inventory', Icons.inventory, 2),
-                      _buildNavItem('Stock History', Icons.history, 3),
-                      _buildNavItem('Reports', Icons.bar_chart, 4),
-                      _buildNavItem('Settings', Icons.settings, 5),
+                      _buildNavItem('Products', Icons.inventory, 1),
+                    const Divider(height: 32, color: Colors.grey),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      child: Text('ADMINISTRATION', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                    _buildNavItem('Analytics Dashboard', Icons.analytics, 2),
+                    _buildNavItem('Stock Entry', Icons.add_box, 3),
+                    _buildNavItem('Stock History', Icons.history, 4),
+                    _buildNavItem('Sales Reports', Icons.bar_chart, 5),
+                    _buildNavItem('Settings', Icons.settings, 6),
                     ],
                   ),
                 ),
                 // Footer (Logout)
-                const Divider(),
-                InkWell(
-                  onTap: () {
-                    ref.read(authProvider.notifier).logout();
-                    setState(() {
-                      _selectedIndex = 0; // Revert to billing
-                    });
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: Colors.grey[600], size: 20),
-                        const SizedBox(width: 12),
-                        Text('Logout', style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w500, fontSize: 14)),
-                      ],
+                if (isAuth) ...[
+                  const Divider(),
+                  InkWell(
+                    onTap: () {
+                      ref.read(authProvider.notifier).logout();
+                      setState(() {
+                        _selectedIndex = 0; // Revert to billing
+                      });
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.logout, color: Colors.red, size: 20),
+                          const SizedBox(width: 12),
+                          const Text('Logout', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14)),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
               ],
             ),
           ),
@@ -205,6 +221,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
             child: _screens[_selectedIndex >= 0 && _selectedIndex < _screens.length ? _selectedIndex : 0],
           ),
         ],
+      ),
       ),
     );
   }

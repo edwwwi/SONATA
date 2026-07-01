@@ -107,13 +107,11 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
-                              child: Text(
-                                '${item.product.name} x${item.quantity}',
-                                style: const TextStyle(fontSize: 16),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                child: Text(
+                                  '${item.product.company} ${item.product.name} x${item.quantity}',
+                                  style: const TextStyle(fontWeight: FontWeight.w500),
+                                ),
                               ),
-                            ),
                             Text(
                               '₹${item.totalPrice.toStringAsFixed(2)}',
                               style: const TextStyle(fontSize: 16),
@@ -200,6 +198,20 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                   child: Row(
                     children: [
                       const Spacer(),
+                      InkWell(
+                        onTap: () {
+                          ref.invalidate(productProvider);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.refresh, size: 20, color: Colors.grey),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
                       StreamBuilder(
                         stream: Stream.periodic(const Duration(seconds: 1)),
                         builder: (context, snapshot) {
@@ -287,21 +299,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.refresh, size: 16),
-                            SizedBox(width: 4),
-                            Text('Refresh', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
+
                       SizedBox(
                         width: 180,
                         height: 36,
@@ -345,7 +343,9 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                     child: productsState.when(
                       data: (products) {
                         var filtered = products.where((p) {
-                          final matchesCategory = _selectedCategory == 'All' || p.category == _selectedCategory;
+                          final matchesCategory = _selectedCategory == 'All' || 
+                                                  p.company == _selectedCategory || 
+                                                  p.type == _selectedCategory;
                           final matchesSearch = p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
                                                 (p.barcode != null && p.barcode!.contains(_searchQuery));
                           return matchesCategory && matchesSearch;
@@ -403,7 +403,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                                 children: [
                                                   Expanded(
                                                     child: Text(
-                                                      product.name,
+                                                      '${product.company} ${product.name}',
                                                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
@@ -415,9 +415,14 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                                   ),
                                                 ],
                                               ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                product.type,
+                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                                              ),
                                               const Spacer(),
                                               InkWell(
-                                                onTap: (!isOutOfStock) ? () {
+                                                onTap: (!isOutOfStock && !inCart) ? () {
                                                   ref.read(cartProvider.notifier).addProduct(product);
                                                   _focusNode.requestFocus();
                                                 } : null,
@@ -425,15 +430,15 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                                   width: double.infinity,
                                                   padding: const EdgeInsets.symmetric(vertical: 8),
                                                   decoration: BoxDecoration(
-                                                    color: isOutOfStock ? Colors.grey.shade300 : (inCart ? Colors.white : const Color(0xFF1E293B)),
-                                                    border: inCart ? Border.all(color: Colors.grey.shade300) : null,
+                                                    color: isOutOfStock ? Colors.grey.shade300 : (inCart ? Colors.green.shade50 : const Color(0xFF1E293B)),
+                                                    border: inCart ? Border.all(color: Colors.green) : null,
                                                     borderRadius: BorderRadius.circular(8),
                                                   ),
                                                   child: Center(
                                                     child: Text(
-                                                      isOutOfStock ? 'Not Available' : (inCart ? 'Add More ( ${cartItem.quantity} )' : '+ Add to Cart'),
+                                                      isOutOfStock ? 'Not Available' : (inCart ? 'Added to Cart' : '+ Add to Cart'),
                                                       style: TextStyle(
-                                                        color: isOutOfStock ? Colors.white : (inCart ? Colors.black87 : Colors.white),
+                                                        color: isOutOfStock ? Colors.white : (inCart ? Colors.green.shade700 : Colors.white),
                                                         fontWeight: FontWeight.w500,
                                                         fontSize: 13,
                                                       ),
@@ -541,27 +546,46 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            item.product.name,
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                            '${item.product.company} ${item.product.name}',
+                                            style: const TextStyle(fontWeight: FontWeight.bold),
                                           ),
                                         ),
-                                        Text('(${item.quantity})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
                                       ],
                                     ),
                                     const SizedBox(height: 8),
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text('₹${item.product.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                        Text('₹${item.totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                                         Row(
                                           children: [
-                                            const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
+                                            InkWell(
+                                              onTap: () => ref.read(cartProvider.notifier).decreaseQuantity(item.product),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(4),
+                                                decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(4)),
+                                                child: const Icon(Icons.remove, size: 16),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold)),
                                             const SizedBox(width: 8),
                                             InkWell(
+                                              onTap: () {
+                                                if (item.quantity < item.product.stock) {
+                                                  ref.read(cartProvider.notifier).increaseQuantity(item.product);
+                                                }
+                                              },
+                                              child: Container(
+                                                padding: const EdgeInsets.all(4),
+                                                decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(4)),
+                                                child: const Icon(Icons.add, size: 16),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            InkWell(
                                               onTap: () => ref.read(cartProvider.notifier).removeProduct(item.product),
-                                              child: const Icon(Icons.delete_outline, size: 16, color: Colors.grey),
+                                              child: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
                                             ),
                                           ],
                                         ),

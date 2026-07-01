@@ -205,7 +205,7 @@ class _DailySalesTab extends ConsumerWidget {
                   ),
                   _buildStatCard(
                     'Total Sales',
-                    '\$${totalAmount.toStringAsFixed(2)}',
+                    '₹${totalAmount.toStringAsFixed(2)}',
                     Colors.green,
                   ),
                 ],
@@ -309,7 +309,7 @@ class _SalesHistoryTab extends ConsumerWidget {
                   'Date: ${DateFormat('yyyy-MM-dd HH:mm').format(sale.createdAt)}',
                 ),
                 trailing: Text(
-                  '\$${sale.totalAmount.toStringAsFixed(2)}',
+                  '₹${sale.totalAmount.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

@@ -192,7 +192,7 @@ class ExportUtils {
                 style: const pw.TextStyle(fontSize: 16),
               ),
               pw.Text(
-                'Total Sales Amount: Rs. ${totalSales.toStringAsFixed(2)}',
+                'Total Sales Amount: \$${totalSales.toStringAsFixed(2)}',
                 style: const pw.TextStyle(fontSize: 16),
               ),
               pw.SizedBox(height: 24),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ice_cream_pos/providers/stock_provider.dart';
+import 'package:ice_cream_pos/providers/product_provider.dart';
 import 'package:ice_cream_pos/core/export_utils.dart';
 import 'package:intl/intl.dart';
 
@@ -36,6 +37,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final stockState = ref.watch(stockProvider);
+    final productState = ref.watch(productProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -144,6 +146,7 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
                       headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
                       columns: const [
                         DataColumn(label: Text('Date & Time')),
+                        DataColumn(label: Text('Company')),
                         DataColumn(label: Text('Product')),
                         DataColumn(label: Text('Type')),
                         DataColumn(label: Text('Qty')),
@@ -152,9 +155,17 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
                         DataColumn(label: Text('Remarks')),
                       ],
                       rows: filteredMovements.map((m) {
+                        String company = 'Unknown';
+                        if (productState.hasValue) {
+                          try {
+                            company = productState.value!.firstWhere((p) => p.id == m.productId).company;
+                          } catch (_) {}
+                        }
+
                         return DataRow(
                           cells: [
                             DataCell(Text(DateFormat('dd MMM yyyy HH:mm').format(m.createdAt))),
+                            DataCell(Text(company, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
                             DataCell(Text(m.productName, style: const TextStyle(fontWeight: FontWeight.bold))),
                             DataCell(
                               Container(

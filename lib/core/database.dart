@@ -36,7 +36,7 @@ class DatabaseHelper {
     return await databaseFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 6,
+        version: 7,
         onCreate: _createDB,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -81,6 +81,10 @@ class DatabaseHelper {
             await db.execute('ALTER TABLE settings ADD COLUMN recipient_email TEXT');
             await db.execute('ALTER TABLE settings ADD COLUMN report_time TEXT');
           }
+          if (oldVersion < 7) {
+            await db.execute('ALTER TABLE products ADD COLUMN company TEXT NOT NULL DEFAULT "Other"');
+            await db.execute('ALTER TABLE products ADD COLUMN type TEXT NOT NULL DEFAULT "Ice Cream"');
+          }
         },
       ),
     );
@@ -93,6 +97,8 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         barcode TEXT,
         category TEXT NOT NULL,
+        company TEXT NOT NULL DEFAULT 'Other',
+        type TEXT NOT NULL DEFAULT 'Ice Cream',
         price REAL NOT NULL,
         stock INTEGER NOT NULL,
         color INTEGER,
