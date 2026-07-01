@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ice_cream_pos/providers/analytics_provider.dart';
+import 'package:ice_cream_pos/widgets/analytics/heatmap_tile_widget.dart';
 import 'package:intl/intl.dart';
 
 class SalesHeatmapWidget extends ConsumerWidget {
@@ -8,129 +9,213 @@ class SalesHeatmapWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final heatmapState = ref.watch(salesHeatmapProvider);
+    final state = ref.watch(monthlyAnalyticsProvider);
+    final notifier = ref.read(monthlyAnalyticsProvider.notifier);
+    final monthDate = DateTime(state.year, state.month, 1);
+    final monthLabel = DateFormat('MMMM yyyy').format(monthDate);
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
+    return Column(
+      children: [
+        // Top: Calendar Card
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Header: Month Selector
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Monthly Sales Heatmap', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: notifier.previousMonth,
+                        ),
+                        Text(
+                          monthLabel,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: () {
+                            final now = DateTime.now();
+                            if (state.year < now.year || (state.year == now.year && state.month < now.month)) {
+                              notifier.nextMonth();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                
+                // Calendar Days Header
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 700),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                            .map((day) => Expanded(
+                                  child: Center(
+                                    child: Text(day, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Calendar Grid
+                      state.heatmapData.when(
+                        loading: () => const SizedBox(
+                          height: 300,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                        error: (e, s) => const SizedBox(height: 300),
+                        data: (data) {
+                          final daysInMonth = DateUtils.getDaysInMonth(state.year, state.month);
+                          int startWeekday = monthDate.weekday;
+                          if (startWeekday == 7) startWeekday = 0; // Sunday is 0
+
+                          List<Widget> tiles = List.generate(startWeekday, (index) => const SizedBox());
+
+                          for (int i = 1; i <= daysInMonth; i++) {
+                            final date = DateTime(state.year, state.month, i);
+                            final summary = data[date];
+                            tiles.add(HeatmapTileWidget(date: date, summary: summary));
+                          }
+
+                          return GridView.count(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisCount: 7,
+                            mainAxisSpacing: 6,
+                            crossAxisSpacing: 6,
+                            childAspectRatio: 1.0, // Perfect Square
+                            children: tiles,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Legend
+                const Center(
+                  child: Wrap(
+                    spacing: 12,
+                    children: [
+                      Text('Legend:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+                      _LegendItem(color: Color(0xFFF3F4F6), label: '0'),
+                      _LegendItem(color: Color(0xFFDFF6DD), label: '₹1-5k'),
+                      _LegendItem(color: Color(0xFFA7E6A3), label: '₹5k-10k'),
+                      _LegendItem(color: Color(0xFF69C96B), label: '₹10k-20k'),
+                      _LegendItem(color: Color(0xFF2FA84F), label: '₹20k-30k'),
+                      _LegendItem(color: Color(0xFF167A2F), label: '₹30k+'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Sales Activity Heatmap',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Daily bill counts over the last year',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            heatmapState.when(
-              loading: () => const SizedBox(
-                height: 150,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, stack) => SizedBox(
-                height: 150,
-                child: Center(child: Text('Error loading heatmap: $error', style: const TextStyle(color: Colors.red))),
-              ),
-              data: (data) => _buildHeatmap(context, data),
-            ),
-          ],
+    ),
+        
+        const SizedBox(height: 24),
+        
+        // Bottom: Monthly Stats Row
+        state.heatmapData.when(
+          loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
+          error: (e, s) => SizedBox(height: 80, child: Center(child: Text('Error: $e'))),
+          data: (data) {
+            double totalSales = 0;
+            num totalBills = 0;
+            double highestDay = 0;
+            int daysWithSales = 0;
+
+            for (var summary in data.values) {
+              totalSales += summary.totalSales;
+              totalBills += summary.billCount;
+              if (summary.totalSales > highestDay) highestDay = summary.totalSales;
+              if (summary.totalSales > 0) daysWithSales++;
+            }
+
+            double avgDaily = daysWithSales > 0 ? totalSales / daysWithSales : 0;
+
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _statHeaderCard('Total Sales', '₹${totalSales.toStringAsFixed(0)}', Colors.blue),
+                _statHeaderCard('Total Bills', '$totalBills', Colors.orange),
+                _statHeaderCard('Avg Daily Sales', '₹${avgDaily.toStringAsFixed(0)}', Colors.purple),
+                _statHeaderCard('Highest Day', '₹${highestDay.toStringAsFixed(0)}', Colors.green),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _statHeaderCard(String title, String value, Color color) {
+    return Expanded(
+      child: Card(
+        color: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color.withOpacity(0.2), width: 2)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 8),
+              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.black87)),
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildHeatmap(BuildContext context, Map<DateTime, int> data) {
-    // Generate dates for the last 52 weeks (364 days)
-    final now = DateTime.now();
-    // We want the last column to end on today.
-    // If today is weekday X (Monday=1, Sunday=7), we want to go back 51 weeks + X days.
-    // To make it simple, let's just generate the last 364 days, ending today.
-    final List<DateTime> dates = [];
-    for (int i = 363; i >= 0; i--) {
-      dates.add(now.subtract(Duration(days: i)));
-    }
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
 
-    // Maximum value to scale colors
-    int maxCount = 1;
-    if (data.isNotEmpty) {
-      maxCount = data.values.reduce((a, b) => a > b ? a : b);
-    }
+  const _LegendItem({required this.color, required this.label});
 
-    // GitHub heatmap groups by columns of 7 (one week per column).
-    // The top row is day 0 (e.g., Sunday), bottom is day 6 (Saturday).
-    // Because we just have 364 days ending today, the first day might be any day of the week.
-    // We will just lay them out vertically: 7 rows, 52 columns.
-    
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      reverse: true, // Auto-scroll to the right (latest)
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Day labels
-          Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text('Sun', style: TextStyle(fontSize: 10, color: Colors.grey)),
-              SizedBox(height: 20),
-              Text('Wed', style: TextStyle(fontSize: 10, color: Colors.grey)),
-              SizedBox(height: 20),
-              Text('Sat', style: TextStyle(fontSize: 10, color: Colors.grey)),
-            ],
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
           ),
-          const SizedBox(width: 8),
-          // Heatmap grid
-          SizedBox(
-            height: 110,
-            child: GridView.builder(
-              shrinkWrap: true,
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7, // 7 days a week
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
-              ),
-              itemCount: dates.length,
-              itemBuilder: (context, index) {
-                final date = dates[index];
-                // normalize date to ignore time
-                final keyDate = DateTime(date.year, date.month, date.day);
-                final count = data[keyDate] ?? 0;
-
-                // Color scale logic (GitHub style greens)
-                Color boxColor = Colors.grey.shade100;
-                if (count > 0) {
-                  final ratio = count / maxCount;
-                  if (ratio > 0.75) boxColor = Colors.green.shade800;
-                  else if (ratio > 0.5) boxColor = Colors.green.shade600;
-                  else if (ratio > 0.25) boxColor = Colors.green.shade400;
-                  else boxColor = Colors.green.shade200;
-                }
-
-                return Tooltip(
-                  message: '${DateFormat('MMM d, yyyy').format(date)}: $count bills',
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: boxColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      ],
     );
   }
 }
