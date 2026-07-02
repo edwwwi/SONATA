@@ -18,6 +18,7 @@ class ShellScreen extends ConsumerStatefulWidget {
 
 class _ShellScreenState extends ConsumerState<ShellScreen> {
   int _selectedIndex = 0; // 0 is Billing by default
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final List<Widget> _screens = [
     const BillingScreen(),
@@ -82,6 +83,9 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
   }
 
   void _onMenuTapped(int index, bool requiresAuth, bool isAuth) {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.pop(context); // Close the drawer
+    }
     if (requiresAuth && !isAuth) {
       _showAdminLoginDialog(index);
     } else {
@@ -133,17 +137,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
     final isAuth = ref.watch(authProvider).value ?? false;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFF1F5F9),
-      body: Container(
-        decoration: BoxDecoration(
-          border: isAuth ? Border.all(color: Colors.red, width: 4) : null,
-        ),
-        child: Row(
-          children: [
-          // Sidebar
-          Container(
-            width: 250,
-            color: Colors.white,
+      drawer: Drawer(
+        child: Container(
+          color: Colors.white,
             child: Column(
               children: [
                 // Logo Section
@@ -215,13 +213,42 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
               ],
             ),
           ),
-          
-          // Main Content Area
-          Expanded(
-            child: _screens[_selectedIndex >= 0 && _selectedIndex < _screens.length ? _selectedIndex : 0],
-          ),
-        ],
       ),
+      body: Container(
+        decoration: BoxDecoration(
+          border: isAuth ? Border.all(color: Colors.red, width: 4) : null,
+        ),
+        child: Stack(
+          children: [
+            // Main Content Area
+            Positioned.fill(
+              child: _screens[_selectedIndex >= 0 && _selectedIndex < _screens.length ? _selectedIndex : 0],
+            ),
+            
+            // Hamburger / Three Dots Button
+            Positioned(
+              top: 16,
+              left: 16,
+              child: SafeArea(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.more_vert, color: Colors.black87),
+                    onPressed: () {
+                      _scaffoldKey.currentState?.openDrawer();
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

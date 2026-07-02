@@ -47,18 +47,32 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   }
 
   void _onSearchSubmitted(String value, List<Product> products) {
-    if (value.trim().isEmpty) return;
+    if (value.trim().isEmpty) {
+      _focusNode.requestFocus();
+      return;
+    }
     
     // Check if the input perfectly matches a barcode
     final matchedProduct = products.where((p) => p.barcode == value.trim()).firstOrNull;
-    if (matchedProduct != null && matchedProduct.stock > 0) {
-      ref.read(cartProvider.notifier).addProduct(matchedProduct);
-      _searchController.clear();
-      setState(() {
-        _searchQuery = '';
-      });
-      _focusNode.requestFocus();
+    if (matchedProduct != null) {
+      if (matchedProduct.stock > 0) {
+        ref.read(cartProvider.notifier).addProduct(matchedProduct);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Product is out of stock!'), duration: Duration(seconds: 1)),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Barcode not found: ${value.trim()}'), duration: const Duration(seconds: 1)),
+      );
     }
+    
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+    });
+    _focusNode.requestFocus();
   }
 
 
@@ -157,12 +171,13 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                         onPressed: () async {
                           Navigator.pop(context); // Close modal
                           await ref.read(salesProvider.notifier).completeSale();
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Sale Completed Successfully!'),
-                              backgroundColor: Colors.green,
-                            ));
-                          }
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                content: Text('Sale Completed Successfully!'),
+                                backgroundColor: Colors.green,
+                              ));
+                              _focusNode.requestFocus();
+                            }
                         },
                         child: const Text('Checkout', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
@@ -174,7 +189,9 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           ),
         );
       },
-    );
+    ).then((_) {
+      _focusNode.requestFocus();
+    });
   }
 
   @override
@@ -183,8 +200,13 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     final cartItems = ref.watch(cartProvider);
     final subtotal = ref.watch(cartProvider.notifier).subtotal;
 
-    return Row(
-      children: [
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).requestFocus(_focusNode);
+      },
+      behavior: HitTestBehavior.translucent,
+      child: Row(
+        children: [
         Expanded(
           flex: 3,
           child: Container(
@@ -201,6 +223,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                       InkWell(
                         onTap: () {
                           ref.invalidate(productProvider);
+                          _focusNode.requestFocus();
                         },
                         child: Container(
                           padding: const EdgeInsets.all(8),
@@ -240,98 +263,86 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   color: Colors.white,
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(Icons.menu_book, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      const Text('Dish Menu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: _categories.map((category) {
-                              final isSelected = _selectedCategory == category;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedCategory = category;
-                                    });
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: isSelected ? const Color(0xFF1E293B) : Colors.white,
-                                      border: Border.all(color: isSelected ? const Color(0xFF1E293B) : Colors.grey.shade300),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Text(category, style: TextStyle(
-                                          color: isSelected ? Colors.white : Colors.black87,
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                          fontSize: 13
-                                        )),
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.grey.shade200,
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Text(
-                                            '8',
-                                            style: TextStyle(
-                                              color: isSelected ? Colors.white : Colors.grey.shade600,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold
-                                            ),
-                                          ),
-                                        )
-                                      ],
-                                    ),
+                      Row(
+                        children: [
+                          const Icon(Icons.menu_book, color: Colors.grey),
+                          const SizedBox(width: 8),
+                          const Text('Dish Menu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const Spacer(),
+                          SizedBox(
+                            width: 250,
+                            height: 36,
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _focusNode,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText: 'Search Menu',
+                                prefixIcon: const Icon(Icons.search, size: 18),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  _searchQuery = val;
+                                });
+                              },
+                              onSubmitted: (val) {
+                                if (productsState.hasValue) {
+                                  _onSearchSubmitted(val, productsState.value!);
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _categories.map((category) {
+                            final isSelected = _selectedCategory == category;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedCategory = category;
+                                  });
+                                  _focusNode.requestFocus();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? const Color(0xFF1E293B) : Colors.white,
+                                    border: Border.all(color: isSelected ? const Color(0xFF1E293B) : Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text(category, style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.black87,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        fontSize: 13
+                                      )),
+                                    ],
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(
-                        width: 180,
-                        height: 36,
-                        child: TextField(
-                          controller: _searchController,
-                          focusNode: _focusNode,
-                          style: const TextStyle(fontSize: 13),
-                          decoration: InputDecoration(
-                            hintText: 'Search Menu',
-                            prefixIcon: const Icon(Icons.search, size: 18),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                          ),
-                          onChanged: (val) {
-                            setState(() {
-                              _searchQuery = val;
-                            });
-                          },
-                          onSubmitted: (val) {
-                            if (productsState.hasValue) {
-                              _onSearchSubmitted(val, productsState.value!);
-                            }
-                          },
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ),
                     ],
@@ -343,7 +354,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                     child: productsState.when(
                       data: (products) {
                         var filtered = products.where((p) {
-                          final matchesCategory = _selectedCategory == 'All' || 
+                          final isSearching = _searchQuery.trim().isNotEmpty;
+                          final matchesCategory = isSearching || _selectedCategory == 'All' || 
                                                   p.company == _selectedCategory || 
                                                   p.type == _selectedCategory;
                           final matchesSearch = p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
@@ -370,16 +382,21 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                             final isOutOfStock = product.stock <= 0;
 
                             return Card(
-                              elevation: 0,
-                              shadowColor: Colors.black.withValues(alpha: 0.05),
+                              elevation: 3,
+                              shadowColor: Colors.black.withValues(alpha: 0.4),
                               color: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: Stack(
-                                children: [
-                                  Column(
+                              child: InkWell(
+                                onTap: (!isOutOfStock && !inCart) ? () {
+                                  ref.read(cartProvider.notifier).addProduct(product);
+                                  _focusNode.requestFocus();
+                                } : null,
+                                child: Stack(
+                                  children: [
+                                    Column(
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
                                       Expanded(
@@ -398,22 +415,9 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      '${product.company} ${product.name}',
-                                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '₹${product.price.toStringAsFixed(2)}',
-                                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ],
+                                              Text(
+                                                '${product.company} ${product.name}',
+                                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
@@ -421,30 +425,19 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
                                               ),
                                               const Spacer(),
-                                              InkWell(
-                                                onTap: (!isOutOfStock && !inCart) ? () {
-                                                  ref.read(cartProvider.notifier).addProduct(product);
-                                                  _focusNode.requestFocus();
-                                                } : null,
-                                                child: Container(
-                                                  width: double.infinity,
-                                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                                  decoration: BoxDecoration(
-                                                    color: isOutOfStock ? Colors.grey.shade300 : (inCart ? Colors.green.shade50 : const Color(0xFF1E293B)),
-                                                    border: inCart ? Border.all(color: Colors.green) : null,
-                                                    borderRadius: BorderRadius.circular(8),
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Text(
+                                                    '₹${product.price.toStringAsFixed(2)}',
+                                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                                   ),
-                                                  child: Center(
-                                                    child: Text(
-                                                      isOutOfStock ? 'Not Available' : (inCart ? 'Added to Cart' : '+ Add to Cart'),
-                                                      style: TextStyle(
-                                                        color: isOutOfStock ? Colors.white : (inCart ? Colors.green.shade700 : Colors.white),
-                                                        fontWeight: FontWeight.w500,
-                                                        fontSize: 13,
-                                                      ),
+                                                  if (inCart)
+                                                    const Text(
+                                                      'Added to Cart',
+                                                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
                                                     ),
-                                                  ),
-                                                ),
+                                                ],
                                               ),
                                             ],
                                           ),
@@ -480,7 +473,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                       ),
                                     ),
                                   ),
-                                ],
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -632,6 +626,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           ),
         ),
       ],
+    ),
     );
   }
 

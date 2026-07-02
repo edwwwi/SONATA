@@ -4,7 +4,8 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      colorSchemeSeed: Colors.blue,
+      colorSchemeSeed: Colors.green,
+      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
       brightness: Brightness.light,
       textTheme: const TextTheme(
         displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
@@ -30,10 +31,12 @@ class AppTheme {
         labelStyle: const TextStyle(fontSize: 18),
       ),
       cardTheme: CardThemeData(
+        color: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
-        elevation: 4,
+        elevation: 0,
       ),
     );
   }

@@ -120,12 +120,11 @@ class SalesHeatmapWidget extends ConsumerWidget {
                     spacing: 12,
                     children: [
                       Text('Legend:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
-                      _LegendItem(color: Color(0xFFF3F4F6), label: '0'),
-                      _LegendItem(color: Color(0xFFDFF6DD), label: '₹1-5k'),
-                      _LegendItem(color: Color(0xFFA7E6A3), label: '₹5k-10k'),
-                      _LegendItem(color: Color(0xFF69C96B), label: '₹10k-20k'),
-                      _LegendItem(color: Color(0xFF2FA84F), label: '₹20k-30k'),
-                      _LegendItem(color: Color(0xFF167A2F), label: '₹30k+'),
+                      _LegendItem(color: Color(0xFFEBEDF0), label: '0'),
+                      _LegendItem(color: Color(0xFF9BE9A8), label: '₹1-5k'),
+                      _LegendItem(color: Color(0xFF40C463), label: '₹5k-10k'),
+                      _LegendItem(color: Color(0xFF30A14E), label: '₹10k-20k'),
+                      _LegendItem(color: Color(0xFF216E39), label: '₹20k+'),
                     ],
                   ),
                 ),
@@ -160,10 +159,13 @@ class SalesHeatmapWidget extends ConsumerWidget {
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _statHeaderCard('Total Sales', '₹${totalSales.toStringAsFixed(0)}', Colors.blue),
-                _statHeaderCard('Total Bills', '$totalBills', Colors.orange),
-                _statHeaderCard('Avg Daily Sales', '₹${avgDaily.toStringAsFixed(0)}', Colors.purple),
-                _statHeaderCard('Highest Day', '₹${highestDay.toStringAsFixed(0)}', Colors.green),
+                _statHeaderCard('Total Sales', '₹${totalSales.toStringAsFixed(0)}'),
+                const SizedBox(width: 16),
+                _statHeaderCard('Total Bills', '$totalBills'),
+                const SizedBox(width: 16),
+                _statHeaderCard('Avg Daily Sales', '₹${avgDaily.toStringAsFixed(0)}'),
+                const SizedBox(width: 16),
+                _statHeaderCard('Highest Day', '₹${highestDay.toStringAsFixed(0)}'),
               ],
             );
           },
@@ -172,18 +174,15 @@ class SalesHeatmapWidget extends ConsumerWidget {
     );
   }
 
-  Widget _statHeaderCard(String title, String value, Color color) {
+  Widget _statHeaderCard(String title, String value) {
     return Expanded(
       child: Card(
-        color: Colors.white,
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color.withOpacity(0.2), width: 2)),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(title, style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 8),
               Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.black87)),
             ],
