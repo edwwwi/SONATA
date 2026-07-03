@@ -7,12 +7,8 @@ import 'package:ice_cream_pos/providers/analytics_provider.dart';
 class HeatmapTileWidget extends ConsumerStatefulWidget {
   final DateTime date;
   final DailySalesSummary? summary;
-  
-  const HeatmapTileWidget({
-    super.key,
-    required this.date,
-    this.summary,
-  });
+
+  const HeatmapTileWidget({super.key, required this.date, this.summary});
 
   @override
   ConsumerState<HeatmapTileWidget> createState() => _HeatmapTileWidgetState();
@@ -37,7 +33,7 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
 
   void _showDetailedStatsDialog() async {
     final repo = ref.read(monthlyAnalyticsRepositoryProvider);
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -47,7 +43,7 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
     try {
       final stats = await repo.getDailyDetailedStats(widget.date);
       final topProducts = await repo.getTopSellingProductsForDate(widget.date);
-      
+
       if (mounted) {
         Navigator.pop(context); // Close loading
         _buildDetailedDialog(stats, topProducts);
@@ -55,13 +51,17 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // Close loading
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading stats: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading stats: $e')));
       }
     }
   }
 
-  void _buildDetailedDialog(DailyDetailedStats? stats, List<TopSellingProduct> topProducts) {
-  void _buildDetailedDialog(DailyDetailedStats? stats, List<TopSellingProduct> topProducts) {
+  void _buildDetailedDialog(
+    DailyDetailedStats? stats,
+    List<TopSellingProduct> topProducts,
+  ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -82,9 +82,18 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Daily Sales Report', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                      const Text(
+                        'Daily Sales Report',
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                      ),
                       const SizedBox(height: 4),
-                      Text(DateFormat('dd MMMM yyyy').format(widget.date), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                      Text(
+                        DateFormat('dd MMMM yyyy').format(widget.date),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
                     ],
                   ),
                   IconButton(
@@ -94,46 +103,90 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
                 ],
               ),
               const Divider(height: 32),
-              
+
               if (stats == null)
                 const Padding(
                   padding: EdgeInsets.all(32.0),
-                  child: Center(child: Text('No sales data recorded for this date.', style: TextStyle(color: Colors.grey, fontSize: 16))),
+                  child: Center(
+                    child: Text(
+                      'No sales data recorded for this date.',
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                  ),
                 )
               else ...[
                 // Stats Grid
                 Row(
                   children: [
-                    Expanded(child: _statCard('Total Sales', '₹${stats.totalSales.toStringAsFixed(0)}', isHighlight: true)),
+                    Expanded(
+                      child: _statCard(
+                        'Total Sales',
+                        '₹${stats.totalSales.toStringAsFixed(0)}',
+                        isHighlight: true,
+                      ),
+                    ),
                     const SizedBox(width: 16),
-                    Expanded(child: _statCard('Total Bills', '${stats.billCount}')),
+                    Expanded(
+                      child: _statCard('Total Bills', '${stats.billCount}'),
+                    ),
                     const SizedBox(width: 16),
-                    Expanded(child: _statCard('Avg Bill', '₹${stats.averageBillValue.toStringAsFixed(0)}')),
+                    Expanded(
+                      child: _statCard(
+                        'Avg Bill',
+                        '₹${stats.averageBillValue.toStringAsFixed(0)}',
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Expanded(child: _statCard('Highest Bill', '₹${stats.highestBill.toStringAsFixed(0)}')),
+                    Expanded(
+                      child: _statCard(
+                        'Highest Bill',
+                        '₹${stats.highestBill.toStringAsFixed(0)}',
+                      ),
+                    ),
                     const SizedBox(width: 16),
-                    Expanded(child: _statCard('Lowest Bill', '₹${stats.lowestBill.toStringAsFixed(0)}')),
+                    Expanded(
+                      child: _statCard(
+                        'Lowest Bill',
+                        '₹${stats.lowestBill.toStringAsFixed(0)}',
+                      ),
+                    ),
                     const SizedBox(width: 16),
-                    Expanded(child: _statCard('Items/Bill', stats.averageItemsPerBill.toStringAsFixed(1))),
+                    Expanded(
+                      child: _statCard(
+                        'Items/Bill',
+                        stats.averageItemsPerBill.toStringAsFixed(1),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Top Products
-                const Text('Top Selling Products', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+                const Text(
+                  'Top Selling Products',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 if (topProducts.isEmpty)
-                  const Text('No items sold.', style: TextStyle(color: Colors.grey))
+                  const Text(
+                    'No items sold.',
+                    style: TextStyle(color: Colors.grey),
+                  )
                 else
                   Expanded(
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: topProducts.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       itemBuilder: (context, index) {
                         final p = topProducts[index];
                         return Padding(
@@ -146,25 +199,54 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
                                   color: Colors.green.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Icon(Icons.icecream, color: Colors.green.shade600, size: 20),
+                                child: Icon(
+                                  Icons.icecream,
+                                  color: Colors.green.shade600,
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(p.productName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                    Text(
+                                      p.productName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
                                     const SizedBox(height: 4),
-                                    Text(p.companyName, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                    Text(
+                                      p.companyName,
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Text('₹${p.revenue.toStringAsFixed(0)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
+                                  Text(
+                                    '₹${p.revenue.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text('${p.quantitySold} Sold', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                  Text(
+                                    '${p.quantitySold} Sold',
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
@@ -187,14 +269,30 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
       decoration: BoxDecoration(
         color: isHighlight ? Colors.green.shade50 : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isHighlight ? Colors.green.shade200 : Colors.grey.shade200),
+        border: Border.all(
+          color: isHighlight ? Colors.green.shade200 : Colors.grey.shade200,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: isHighlight ? Colors.green.shade700 : Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(
+              color: isHighlight ? Colors.green.shade700 : Colors.grey.shade600,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isHighlight ? Colors.green.shade900 : Colors.black87)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: isHighlight ? Colors.green.shade900 : Colors.black87,
+            ),
+          ),
         ],
       ),
     );
@@ -210,7 +308,10 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05), width: 1),
+        border: Border.all(
+          color: Colors.black.withValues(alpha: 0.05),
+          width: 1,
+        ),
       ),
       child: Center(
         child: Column(
@@ -240,7 +341,8 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
 
     if (sales > 0) {
       tile = Tooltip(
-        message: '${DateFormat('dd MMMM yyyy').format(widget.date)}\nSales: ₹${sales.toStringAsFixed(0)}\nBills: ${widget.summary?.billCount ?? 0}\nItems: ${widget.summary?.itemsSold ?? 0}',
+        message:
+            '${DateFormat('dd MMMM yyyy').format(widget.date)}\nSales: ₹${sales.toStringAsFixed(0)}\nBills: ${widget.summary?.billCount ?? 0}\nItems: ${widget.summary?.itemsSold ?? 0}',
         textStyle: const TextStyle(color: Colors.white),
         decoration: BoxDecoration(
           color: Colors.black87,
@@ -256,7 +358,8 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeInOut,
-        transform: Matrix4.identity()..scale(_isHovered ? 1.05 : 1.0, _isHovered ? 1.05 : 1.0, 1.0),
+        transform: Matrix4.identity()
+          ..scale(_isHovered ? 1.05 : 1.0, _isHovered ? 1.05 : 1.0, 1.0),
         child: InkWell(
           onTap: sales > 0 ? _showDetailedDialog : null,
           borderRadius: BorderRadius.circular(4),
@@ -265,8 +368,8 @@ class _HeatmapTileWidgetState extends ConsumerState<HeatmapTileWidget> {
       ),
     );
   }
-  
+
   void _showDetailedDialog() {
-      _showDetailedStatsDialog();
+    _showDetailedStatsDialog();
   }
 }

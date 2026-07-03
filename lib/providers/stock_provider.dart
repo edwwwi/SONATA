@@ -37,8 +37,8 @@ class StockNotifier extends AsyncNotifier<List<StockMovement>> {
           quantity: quantity,
           previousStock: currentStock,
           currentStock: newStock,
-          movementType: 'STOCK_IN',
-          remarks: 'Manual Stock Entry',
+          movementType: quantity >= 0 ? 'STOCK_IN' : 'STOCK_OUT',
+          remarks: quantity >= 0 ? 'Manual Stock Entry' : 'Manual Stock Reduction',
           createdAt: DateTime.now(),
         );
         

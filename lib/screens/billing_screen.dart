@@ -381,15 +381,17 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                             final inCart = cartItem != null;
                             final isOutOfStock = product.stock <= 0;
 
-                            return Card(
-                              elevation: 3,
-                              shadowColor: Colors.black.withValues(alpha: 0.4),
-                              color: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
+                            return Opacity(
+                              opacity: isOutOfStock ? 0.2 : 1.0,
+                              child: Card(
+                                elevation: 3,
+                                shadowColor: Colors.black.withValues(alpha: 0.4),
+                                color: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: InkWell(
                                 onTap: (!isOutOfStock && !inCart) ? () {
                                   ref.read(cartProvider.notifier).addProduct(product);
                                   _focusNode.requestFocus();
@@ -432,11 +434,6 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                                     '₹${product.price.toStringAsFixed(2)}',
                                                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                                   ),
-                                                  if (inCart)
-                                                    const Text(
-                                                      'Added to Cart',
-                                                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
-                                                    ),
                                                 ],
                                               ),
                                             ],
@@ -473,8 +470,21 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                       ),
                                     ),
                                   ),
+                                    if (inCart)
+                                      Positioned.fill(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.withValues(alpha: 0.15),
+                                            border: Border.all(color: Colors.green, width: 2),
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+                                        ),
+                                      ),
                                   ],
                                 ),
+                              ),
                               ),
                             );
                           },
@@ -490,7 +500,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           ),
         ),
         Container(
-          width: 320,
+          width: 400,
           color: Colors.white,
           child: Column(
             children: [
@@ -607,16 +617,20 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E293B),
+                          backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          elevation: 4,
+                          shadowColor: Colors.green.withValues(alpha: 0.4),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: cartItems.isEmpty ? null : () {
                           _showCheckoutModal(context, cartItems, subtotal);
                         },
-                        child: const Text('Confirm Payment', style: TextStyle(fontWeight: FontWeight.w500)),
+                        child: const Text(
+                          'Confirm Payment',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                        ),
                       ),
                     ),
                   ],

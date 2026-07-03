@@ -136,9 +136,15 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
   Widget build(BuildContext context) {
     final isAuth = ref.watch(authProvider).value ?? false;
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF1F5F9),
+    return Listener(
+      onPointerDown: (_) {
+        if (isAuth) {
+          ref.read(authProvider.notifier).resetActivityTimer();
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: const Color(0xFFF1F5F9),
       drawer: Drawer(
         child: Container(
           color: Colors.white,
@@ -225,31 +231,27 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
               child: _screens[_selectedIndex >= 0 && _selectedIndex < _screens.length ? _selectedIndex : 0],
             ),
             
-            // Hamburger / Three Dots Button
+            // Left Edge Hover Area for Drawer
             Positioned(
-              top: 16,
-              left: 16,
-              child: SafeArea(
+              top: 0,
+              bottom: 0,
+              left: 0,
+              child: MouseRegion(
+                onEnter: (_) {
+                  if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false)) {
+                    _scaffoldKey.currentState?.openDrawer();
+                  }
+                },
                 child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))
-                    ],
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.black87),
-                    onPressed: () {
-                      _scaffoldKey.currentState?.openDrawer();
-                    },
-                  ),
+                  width: 20,
+                  color: Colors.transparent,
                 ),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+ }
 }

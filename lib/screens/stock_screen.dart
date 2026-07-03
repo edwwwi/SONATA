@@ -49,10 +49,40 @@ class StockScreen extends ConsumerWidget {
                   contentPadding: const EdgeInsets.all(16),
                   title: Text('${product.company} ${product.name}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   subtitle: Text('Current Stock: ${product.stock}', style: TextStyle(fontSize: 18, color: product.stock < 10 ? Colors.red : Colors.green)),
-                  trailing: ElevatedButton.icon(
-                    onPressed: () => _showAddStockDialog(context, ref, product.id!, product.name),
-                    icon: const Icon(Icons.add_box),
-                    label: const Text('Add Stock'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        tooltip: 'Delete Product',
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Product'),
+                              content: Text('Are you sure you want to delete ${product.name}?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () {
+                                    ref.read(productProvider.notifier).deleteProduct(product.id!);
+                                    Navigator.pop(ctx);
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product deleted')));
+                                  },
+                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _showAddStockDialog(context, ref, product.id!, product.name),
+                        icon: const Icon(Icons.add_box),
+                        label: const Text('Adjust Stock'),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -71,11 +101,11 @@ class StockScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Add Stock for $productName'),
+        title: Text('Adjust Stock for $productName'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'Quantity to Add'),
-          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Quantity (use - to reduce)'),
+          keyboardType: const TextInputType.numberWithOptions(signed: true),
           autofocus: true,
         ),
         actions: [
@@ -83,13 +113,13 @@ class StockScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () {
               final quantity = int.tryParse(controller.text);
-              if (quantity != null && quantity > 0) {
+              if (quantity != null && quantity != 0) {
                 ref.read(stockProvider.notifier).addStock(productId, quantity);
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stock Added Successfully')));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(quantity > 0 ? 'Stock Added Successfully' : 'Stock Reduced Successfully')));
               }
             },
-            child: const Text('Add Stock'),
+            child: const Text('Confirm'),
           ),
         ],
       ),
