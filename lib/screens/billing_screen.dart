@@ -52,14 +52,24 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       return;
     }
     
-    // Check if the input perfectly matches a barcode
-    final matchedProduct = products.where((p) => p.barcode == value.trim()).firstOrNull;
-    if (matchedProduct != null) {
-      if (matchedProduct.stock > 0) {
-        ref.read(cartProvider.notifier).addProduct(matchedProduct);
+    // Check if the input perfectly matches a barcode or box barcode
+    final matchedPiece = products.where((p) => p.barcode == value.trim()).firstOrNull;
+    final matchedBox = products.where((p) => p.isBoxPiece && p.boxBarcode == value.trim()).firstOrNull;
+    
+    if (matchedPiece != null) {
+      if (matchedPiece.stock > 0) {
+        ref.read(cartProvider.notifier).addProduct(matchedPiece, isBoxSale: false);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Product is out of stock!'), duration: Duration(seconds: 1)),
+        );
+      }
+    } else if (matchedBox != null) {
+      if (matchedBox.stock >= matchedBox.piecesPerBox) {
+        ref.read(cartProvider.notifier).addProduct(matchedBox, isBoxSale: true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough pieces in stock for a full box! (${matchedBox.stock} left)'), duration: const Duration(seconds: 1)),
         );
       }
     } else {
@@ -81,11 +91,17 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        final now = DateTime.now();
-        final formattedDate = DateFormat('yyyy-MM-dd').format(now);
-        final formattedTime = DateFormat('HH:mm').format(now);
+        bool isDue = false;
+        bool isProcessing = false;
+        final nameController = TextEditingController();
 
-        return Dialog(
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final now = DateTime.now();
+            final formattedDate = DateFormat('yyyy-MM-dd').format(now);
+            final formattedTime = DateFormat('HH:mm').format(now);
+
+            return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Container(
             width: 400,
@@ -144,7 +160,34 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                     Text('₹${subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
                   ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isDue,
+                      onChanged: (val) {
+                        setState(() {
+                          isDue = val ?? false;
+                        });
+                      },
+                      activeColor: Colors.red,
+                    ),
+                    const Text('Mark as Due Bill (Credit)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  ],
+                ),
+                if (isDue)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 12, bottom: 16),
+                    child: TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Customer Name (Required for Due Bill)',
+                        border: OutlineInputBorder(),
+                      ),
+                      autofocus: true,
+                    ),
+                  ),
+                const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
@@ -163,23 +206,45 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: isDue ? Colors.red : Colors.green,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        onPressed: () async {
-                          Navigator.pop(context); // Close modal
-                          await ref.read(salesProvider.notifier).completeSale();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                content: Text('Sale Completed Successfully!'),
-                                backgroundColor: Colors.green,
+                        onPressed: isProcessing ? null : () async {
+                          if (isDue && nameController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a customer name for the Due Bill.')));
+                            return;
+                          }
+                          
+                          setState(() { isProcessing = true; });
+                          
+                          try {
+                            await ref.read(salesProvider.notifier).completeSale(
+                              isDue: isDue, 
+                              dueName: isDue ? nameController.text.trim() : null
+                            );
+                            if (context.mounted) {
+                              Navigator.pop(context); // Close modal
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(isDue ? 'Due Bill Created!' : 'Sale Completed Successfully!'),
+                                backgroundColor: isDue ? Colors.red : Colors.green,
                               ));
                               _focusNode.requestFocus();
                             }
+                          } catch (e) {
+                            if (context.mounted) {
+                              setState(() { isProcessing = false; });
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text('Transaction Failed: $e'),
+                                backgroundColor: Colors.red,
+                              ));
+                            }
+                          }
                         },
-                        child: const Text('Checkout', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: isProcessing 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : Text(isDue ? 'Checkout as Due' : 'Checkout', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -188,7 +253,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             ),
           ),
         );
-      },
+      });
+    },
     ).then((_) {
       _focusNode.requestFocus();
     });
@@ -393,8 +459,40 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                 clipBehavior: Clip.antiAlias,
                                 child: InkWell(
                                 onTap: (!isOutOfStock && !inCart) ? () {
-                                  ref.read(cartProvider.notifier).addProduct(product);
-                                  _focusNode.requestFocus();
+                                  if (product.isBoxPiece && product.piecesPerBox > 1) {
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: Text('Add ${product.name}'),
+                                        content: const Text('Do you want to add a single piece or a full unit (box)?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              ref.read(cartProvider.notifier).addProduct(product, isBoxSale: false);
+                                              _focusNode.requestFocus();
+                                            },
+                                            child: const Text('1 Piece (Nos)', style: TextStyle(fontSize: 16)),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              if (product.stock >= product.piecesPerBox) {
+                                                ref.read(cartProvider.notifier).addProduct(product, isBoxSale: true);
+                                              } else {
+                                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Not enough pieces for a full unit! (${product.stock} left)')));
+                                              }
+                                              _focusNode.requestFocus();
+                                            },
+                                            child: const Text('1 Unit (Box)', style: TextStyle(fontSize: 16)),
+                                          ),
+                                        ],
+                                      )
+                                    );
+                                  } else {
+                                    ref.read(cartProvider.notifier).addProduct(product);
+                                    _focusNode.requestFocus();
+                                  }
                                 } : null,
                                 child: Stack(
                                   children: [
@@ -550,7 +648,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            '${item.product.company} ${item.product.name}',
+                                            item.displayName,
                                             style: const TextStyle(fontWeight: FontWeight.bold),
                                           ),
                                         ),
@@ -564,7 +662,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                         Row(
                                           children: [
                                             InkWell(
-                                              onTap: () => ref.read(cartProvider.notifier).decreaseQuantity(item.product),
+                                              onTap: () => ref.read(cartProvider.notifier).decreaseQuantity(item.product, isBoxSale: item.isBoxSale),
                                               child: Container(
                                                 padding: const EdgeInsets.all(4),
                                                 decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(4)),
@@ -576,8 +674,9 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                             const SizedBox(width: 8),
                                             InkWell(
                                               onTap: () {
-                                                if (item.quantity < item.product.stock) {
-                                                  ref.read(cartProvider.notifier).increaseQuantity(item.product);
+                                                final stockNeeded = item.isBoxSale ? (item.quantity + 1) * item.product.piecesPerBox : (item.quantity + 1);
+                                                if (stockNeeded <= item.product.stock) {
+                                                  ref.read(cartProvider.notifier).increaseQuantity(item.product, isBoxSale: item.isBoxSale);
                                                 }
                                               },
                                               child: Container(
@@ -588,7 +687,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                             ),
                                             const SizedBox(width: 16),
                                             InkWell(
-                                              onTap: () => ref.read(cartProvider.notifier).removeProduct(item.product),
+                                              onTap: () => ref.read(cartProvider.notifier).removeProduct(item.product, isBoxSale: item.isBoxSale),
                                               child: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
                                             ),
                                           ],

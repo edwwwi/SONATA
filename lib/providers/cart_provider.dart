@@ -4,10 +4,13 @@ import 'package:ice_cream_pos/models/product.dart';
 class CartItem {
   final Product product;
   int quantity;
+  final bool isBoxSale;
 
-  CartItem({required this.product, this.quantity = 1});
+  CartItem({required this.product, this.quantity = 1, this.isBoxSale = false});
 
-  double get totalPrice => product.price * quantity;
+  double get totalPrice => (isBoxSale ? product.boxPrice : product.price) * quantity;
+  
+  String get displayName => isBoxSale ? '${product.name} (Unit)' : product.name;
 }
 
 class CartNotifier extends Notifier<List<CartItem>> {
@@ -16,16 +19,16 @@ class CartNotifier extends Notifier<List<CartItem>> {
     return [];
   }
 
-  void addProduct(Product product) {
-    final existingIndex = state.indexWhere((item) => item.product.id == product.id);
+  void addProduct(Product product, {bool isBoxSale = false}) {
+    final existingIndex = state.indexWhere((item) => item.product.id == product.id && item.isBoxSale == isBoxSale);
     if (existingIndex < 0) {
       // Only add if not already in cart
-      state = [...state, CartItem(product: product)];
+      state = [...state, CartItem(product: product, isBoxSale: isBoxSale)];
     }
   }
 
-  void increaseQuantity(Product product) {
-    final existingIndex = state.indexWhere((item) => item.product.id == product.id);
+  void increaseQuantity(Product product, {bool isBoxSale = false}) {
+    final existingIndex = state.indexWhere((item) => item.product.id == product.id && item.isBoxSale == isBoxSale);
     if (existingIndex >= 0) {
       final updatedList = List<CartItem>.from(state);
       updatedList[existingIndex].quantity += 1;
@@ -33,21 +36,21 @@ class CartNotifier extends Notifier<List<CartItem>> {
     }
   }
 
-  void decreaseQuantity(Product product) {
-    final existingIndex = state.indexWhere((item) => item.product.id == product.id);
+  void decreaseQuantity(Product product, {bool isBoxSale = false}) {
+    final existingIndex = state.indexWhere((item) => item.product.id == product.id && item.isBoxSale == isBoxSale);
     if (existingIndex >= 0) {
       final updatedList = List<CartItem>.from(state);
       if (updatedList[existingIndex].quantity > 1) {
         updatedList[existingIndex].quantity -= 1;
         state = updatedList;
       } else {
-        removeProduct(product);
+        removeProduct(product, isBoxSale: isBoxSale);
       }
     }
   }
 
-  void removeProduct(Product product) {
-    state = state.where((item) => item.product.id != product.id).toList();
+  void removeProduct(Product product, {bool isBoxSale = false}) {
+    state = state.where((item) => !(item.product.id == product.id && item.isBoxSale == isBoxSale)).toList();
   }
 
   void clearCart() {

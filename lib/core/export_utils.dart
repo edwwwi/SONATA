@@ -7,225 +7,261 @@ import 'package:ice_cream_pos/models/sale.dart';
 import 'package:ice_cream_pos/models/product.dart';
 import 'package:ice_cream_pos/models/stock_movement.dart';
 import 'package:intl/intl.dart';
+import 'package:ice_cream_pos/core/logger.dart';
 
 class ExportUtils {
   static Future<void> exportSalesCsv(List<Sale> sales) async {
-    List<List<dynamic>> rows = [];
-    rows.add(["ID", "Bill Number", "Total Amount", "Date"]);
-    for (var sale in sales) {
-      rows.add([
-        sale.id,
-        sale.billNumber,
-        sale.totalAmount,
-        DateFormat('yyyy-MM-dd HH:mm').format(sale.createdAt),
-      ]);
-    }
+    try {
+      if (sales.isEmpty) throw Exception('No data available to export.');
 
-    String csvData = const ListToCsvConverter().convert(rows);
-    await _saveFile(
-      csvData,
-      "Sales_${DateFormat('yyyy_MM_dd').format(DateTime.now())}.csv",
-    );
+      List<List<dynamic>> rows = [];
+      rows.add(["ID", "Bill Number", "Total Amount", "Date"]);
+      for (var sale in sales) {
+        rows.add([
+          sale.id,
+          sale.billNumber,
+          sale.totalAmount,
+          DateFormat('yyyy-MM-dd HH:mm').format(sale.createdAt),
+        ]);
+      }
+
+      String csvData = const ListToCsvConverter().convert(rows);
+      await _saveFile(
+        csvData,
+        "Sales_${DateFormat('yyyy_MM_dd').format(DateTime.now())}.csv",
+      );
+    } catch (e, st) {
+      await AppLogger.log('ExportUtils', 'Failed to export Sales CSV', exception: e, stackTrace: st);
+      rethrow;
+    }
   }
 
   static Future<void> exportStockCsv(List<Product> products) async {
-    List<List<dynamic>> rows = [];
-    rows.add(["ID", "Name", "Category", "Price", "Current Stock"]);
-    for (var p in products) {
-      rows.add([p.id, p.name, p.category, p.price, p.stock]);
-    }
+    try {
+      if (products.isEmpty) throw Exception('No data available to export.');
 
-    String csvData = const ListToCsvConverter().convert(rows);
-    await _saveFile(
-      csvData,
-      "Stock_${DateFormat('yyyy_MM_dd').format(DateTime.now())}.csv",
-    );
+      List<List<dynamic>> rows = [];
+      rows.add(["ID", "Name", "Category", "Price", "Current Stock"]);
+      for (var p in products) {
+        rows.add([p.id, p.name, p.category, p.price, p.stock]);
+      }
+
+      String csvData = const ListToCsvConverter().convert(rows);
+      await _saveFile(
+        csvData,
+        "Stock_${DateFormat('yyyy_MM_dd').format(DateTime.now())}.csv",
+      );
+    } catch (e, st) {
+      await AppLogger.log('ExportUtils', 'Failed to export Stock CSV', exception: e, stackTrace: st);
+      rethrow;
+    }
   }
 
   static Future<void> exportStockMovementsCsv(
     List<StockMovement> movements,
   ) async {
-    List<List<dynamic>> rows = [];
-    rows.add([
-      "Date",
-      "Time",
-      "Product",
-      "Movement Type",
-      "Quantity",
-      "Previous Stock",
-      "Current Stock",
-      "Remarks",
-    ]);
-    for (var m in movements) {
-      rows.add([
-        DateFormat('dd MMM yyyy').format(m.createdAt),
-        DateFormat('HH:mm').format(m.createdAt),
-        m.productName,
-        m.movementType,
-        m.quantity > 0 ? '+${m.quantity}' : m.quantity.toString(),
-        m.previousStock,
-        m.currentStock,
-        m.remarks ?? '',
-      ]);
-    }
+    try {
+      if (movements.isEmpty) throw Exception('No data available to export.');
 
-    String csvData = const ListToCsvConverter().convert(rows);
-    await _saveFile(
-      csvData,
-      "StockHistory_${DateFormat('yyyy_MM_dd_HH_mm').format(DateTime.now())}.csv",
-    );
+      List<List<dynamic>> rows = [];
+      rows.add([
+        "Date",
+        "Time",
+        "Product",
+        "Movement Type",
+        "Quantity",
+        "Previous Stock",
+        "Current Stock",
+        "Remarks",
+      ]);
+      for (var m in movements) {
+        rows.add([
+          DateFormat('dd MMM yyyy').format(m.createdAt),
+          DateFormat('HH:mm').format(m.createdAt),
+          m.productName,
+          m.movementType,
+          m.quantity > 0 ? '+${m.quantity}' : m.quantity.toString(),
+          m.previousStock,
+          m.currentStock,
+          m.remarks ?? '',
+        ]);
+      }
+
+      String csvData = const ListToCsvConverter().convert(rows);
+      await _saveFile(
+        csvData,
+        "StockHistory_${DateFormat('yyyy_MM_dd_HH_mm').format(DateTime.now())}.csv",
+      );
+    } catch (e, st) {
+      await AppLogger.log('ExportUtils', 'Failed to export Stock Movement CSV', exception: e, stackTrace: st);
+      rethrow;
+    }
   }
 
   static Future<void> exportStockMovementsPdf(
     List<StockMovement> movements,
   ) async {
-    final pdf = pw.Document();
+    try {
+      if (movements.isEmpty) throw Exception('No data available to export.');
 
-    // Split into chunks if too many rows for one page (TableHelper can handle page breaks if used correctly)
-    pdf.addPage(
-      pw.MultiPage(
-        build: (pw.Context context) {
-          return [
-            pw.Text(
-              'Stock Movement History',
-              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
-              style: const pw.TextStyle(fontSize: 12),
-            ),
-            pw.SizedBox(height: 24),
-            pw.TableHelper.fromTextArray(
-              context: context,
-              cellAlignment: pw.Alignment.centerLeft,
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColors.grey300,
+      final pdf = pw.Document();
+
+      // Split into chunks if too many rows for one page (TableHelper can handle page breaks if used correctly)
+      pdf.addPage(
+        pw.MultiPage(
+          build: (pw.Context context) {
+            return [
+              pw.Text(
+                'Stock Movement History',
+                style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
               ),
-              data: <List<String>>[
-                <String>[
-                  'Date & Time',
-                  'Product',
-                  'Type',
-                  'Qty',
-                  'Prev',
-                  'Curr',
-                  'Remarks',
-                ],
-                ...movements.map(
-                  (m) => [
-                    DateFormat('dd MMM yy HH:mm').format(m.createdAt),
-                    m.productName,
-                    m.movementType,
-                    m.quantity > 0 ? '+${m.quantity}' : m.quantity.toString(),
-                    m.previousStock.toString(),
-                    m.currentStock.toString(),
-                    m.remarks ?? '',
-                  ],
+              pw.SizedBox(height: 8),
+              pw.Text(
+                'Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+                style: const pw.TextStyle(fontSize: 12),
+              ),
+              pw.SizedBox(height: 24),
+              pw.TableHelper.fromTextArray(
+                context: context,
+                cellAlignment: pw.Alignment.centerLeft,
+                headerDecoration: const pw.BoxDecoration(
+                  color: PdfColors.grey300,
                 ),
-              ],
-            ),
-          ];
-        },
-      ),
-    );
+                data: <List<String>>[
+                  <String>[
+                    'Date & Time',
+                    'Product',
+                    'Type',
+                    'Qty',
+                    'Prev',
+                    'Curr',
+                    'Remarks',
+                  ],
+                  ...movements.map(
+                    (m) => [
+                      DateFormat('dd MMM yy HH:mm').format(m.createdAt),
+                      m.productName,
+                      m.movementType,
+                      m.quantity > 0 ? '+${m.quantity}' : m.quantity.toString(),
+                      m.previousStock.toString(),
+                      m.currentStock.toString(),
+                      m.remarks ?? '',
+                    ],
+                  ),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
 
-    final bytes = await pdf.save();
-    await _saveFile(
-      bytes,
-      "StockHistory_${DateFormat('yyyy_MM_dd_HH_mm').format(DateTime.now())}.pdf",
-      isBytes: true,
-    );
+      final bytes = await pdf.save();
+      await _saveFile(
+        bytes,
+        "StockHistory_${DateFormat('yyyy_MM_dd_HH_mm').format(DateTime.now())}.pdf",
+        isBytes: true,
+      );
+    } catch (e, st) {
+      await AppLogger.log('ExportUtils', 'Failed to export Stock Movement PDF', exception: e, stackTrace: st);
+      rethrow;
+    }
   }
 
   static Future<void> exportDailyReportPdf(
     List<Sale> sales,
     List<Product> products,
   ) async {
-    final pdf = pw.Document();
+    try {
+      final pdf = pw.Document();
 
-    final today = DateTime.now();
-    final todaySales = sales
-        .where(
-          (s) =>
-              s.createdAt.year == today.year &&
-              s.createdAt.month == today.month &&
-              s.createdAt.day == today.day,
-        )
-        .toList();
+      final today = DateTime.now();
+      final todaySales = sales
+          .where(
+            (s) =>
+                s.createdAt.year == today.year &&
+                s.createdAt.month == today.month &&
+                s.createdAt.day == today.day,
+          )
+          .toList();
 
-    double totalSales = todaySales.fold(
-      0,
-      (sum, item) => sum + item.totalAmount,
-    );
-    /////l,l
-    pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'Ice Cream Shop - Daily Report',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                'Date: ${DateFormat('yyyy-MM-dd').format(today)}',
-                style: const pw.TextStyle(fontSize: 16),
-              ),
-              pw.SizedBox(height: 24),
+      if (todaySales.isEmpty && products.isEmpty) throw Exception('No data available to export.');
 
-              pw.Text(
-                'Sales Summary',
-                style: pw.TextStyle(
-                  fontSize: 20,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Divider(),
-              pw.Text(
-                'Total Bills: ${todaySales.length}',
-                style: const pw.TextStyle(fontSize: 16),
-              ),
-              pw.Text(
-                'Total Sales Amount: \$${totalSales.toStringAsFixed(2)}',
-                style: const pw.TextStyle(fontSize: 16),
-              ),
-              pw.SizedBox(height: 24),
+      double totalSales = todaySales.fold(
+        0,
+        (sum, item) => sum + item.totalAmount,
+      );
 
-              pw.Text(
-                'Current Stock Summary',
-                style: pw.TextStyle(
-                  fontSize: 20,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Divider(),
-              pw.TableHelper.fromTextArray(
-                context: context,
-                data: <List<String>>[
-                  <String>['Product', 'Category', 'Stock'],
-                  ...products.map(
-                    (p) => [p.name, p.category, p.stock.toString()],
+      pdf.addPage(
+        pw.Page(
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Ice Cream Shop - Daily Report',
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
                   ),
-                ],
-              ),
-            ],
-          );
-        },
-      ),
-    );
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'Date: ${DateFormat('yyyy-MM-dd').format(today)}',
+                  style: const pw.TextStyle(fontSize: 16),
+                ),
+                pw.SizedBox(height: 24),
 
-    final bytes = await pdf.save();
-    await _saveFile(
-      bytes,
-      "Daily_Report_${DateFormat('yyyy_MM_dd').format(today)}.pdf",
-      isBytes: true,
-    );
+                pw.Text(
+                  'Sales Summary',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.Divider(),
+                pw.Text(
+                  'Total Bills: ${todaySales.length}',
+                  style: const pw.TextStyle(fontSize: 16),
+                ),
+                pw.Text(
+                  'Total Sales Amount: \$${totalSales.toStringAsFixed(2)}',
+                  style: const pw.TextStyle(fontSize: 16),
+                ),
+                pw.SizedBox(height: 24),
+
+                pw.Text(
+                  'Current Stock Summary',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.Divider(),
+                pw.TableHelper.fromTextArray(
+                  context: context,
+                  data: <List<String>>[
+                    <String>['Product', 'Category', 'Stock'],
+                    ...products.map(
+                      (p) => [p.name, p.category, p.stock.toString()],
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      final bytes = await pdf.save();
+      await _saveFile(
+        bytes,
+        "Daily_Report_${DateFormat('yyyy_MM_dd').format(today)}.pdf",
+        isBytes: true,
+      );
+    } catch (e, st) {
+      await AppLogger.log('ExportUtils', 'Failed to export Daily Report PDF', exception: e, stackTrace: st);
+      rethrow;
+    }
   }
 
   static Future<void> _saveFile(

@@ -231,21 +231,21 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
               child: _screens[_selectedIndex >= 0 && _selectedIndex < _screens.length ? _selectedIndex : 0],
             ),
             
-            // Left Edge Hover Area for Drawer
+            // Bottom Left Three-Dot Menu for Drawer
             Positioned(
-              top: 0,
-              bottom: 0,
-              left: 0,
-              child: MouseRegion(
-                onEnter: (_) {
+              bottom: 24,
+              left: 24,
+              child: FloatingActionButton(
+                mini: true,
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black87,
+                elevation: 4,
+                onPressed: () {
                   if (!(_scaffoldKey.currentState?.isDrawerOpen ?? false)) {
                     _scaffoldKey.currentState?.openDrawer();
                   }
                 },
-                child: Container(
-                  width: 20,
-                  color: Colors.transparent,
-                ),
+                child: const Icon(Icons.more_vert),
               ),
             ),
           ],

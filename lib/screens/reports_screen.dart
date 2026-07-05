@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ice_cream_pos/providers/auth_provider.dart';
 import 'package:ice_cream_pos/providers/sales_provider.dart';
 import 'package:ice_cream_pos/providers/product_provider.dart';
+import 'package:ice_cream_pos/providers/database_provider.dart';
+import 'package:ice_cream_pos/models/sale.dart';
 import 'package:ice_cream_pos/core/export_utils.dart';
 import 'package:intl/intl.dart';
 
@@ -167,7 +169,6 @@ class _DailySalesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final salesState = ref.watch(salesProvider);
-    final productsState = ref.watch(productProvider);
 
     return salesState.when(
       data: (sales) {
@@ -180,10 +181,16 @@ class _DailySalesTab extends ConsumerWidget {
                   s.createdAt.day == today.day,
             )
             .toList();
-        final totalAmount = todaySales.fold(
+        final totalPaidAmount = todaySales.where((s) => !s.isDue).fold(
           0.0,
           (sum, item) => sum + item.totalAmount,
         );
+        final totalDueAmount = todaySales.where((s) => s.isDue).fold(
+          0.0,
+          (sum, item) => sum + item.totalAmount,
+        );
+
+        bool isProcessing = false;
 
         return Padding(
           padding: const EdgeInsets.all(24.0),
@@ -204,41 +211,74 @@ class _DailySalesTab extends ConsumerWidget {
                     Colors.blue,
                   ),
                   _buildStatCard(
-                    'Total Sales',
-                    '₹${totalAmount.toStringAsFixed(2)}',
+                    'Total Sales (Paid)',
+                    '₹${totalPaidAmount.toStringAsFixed(2)}',
                     Colors.green,
+                  ),
+                  _buildStatCard(
+                    'Total Due',
+                    '₹${totalDueAmount.toStringAsFixed(2)}',
+                    Colors.red,
                   ),
                 ],
               ),
               const Spacer(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final products = ref.read(productProvider).value ?? [];
-                      await ExportUtils.exportDailyReportPdf(sales, products);
-                      if (context.mounted)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('PDF Exported')),
-                        );
-                    },
-                    icon: const Icon(Icons.picture_as_pdf),
-                    label: const Text('Export PDF'),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      await ExportUtils.exportSalesCsv(todaySales);
-                      if (context.mounted)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('CSV Exported')),
-                        );
-                    },
-                    icon: const Icon(Icons.table_chart),
-                    label: const Text('Export CSV'),
-                  ),
-                ],
+              StatefulBuilder(
+                builder: (context, setState) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: isProcessing ? null : () async {
+                          setState(() { isProcessing = true; });
+                          try {
+                            final products = ref.read(productProvider).value ?? [];
+                            await ExportUtils.exportDailyReportPdf(sales, products);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('PDF Exported')),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Export Failed: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          } finally {
+                            setState(() { isProcessing = false; });
+                          }
+                        },
+                        icon: isProcessing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.picture_as_pdf),
+                        label: const Text('Export PDF'),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: isProcessing ? null : () async {
+                          setState(() { isProcessing = true; });
+                          try {
+                            await ExportUtils.exportSalesCsv(todaySales);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('CSV Exported')),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Export Failed: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          } finally {
+                            setState(() { isProcessing = false; });
+                          }
+                        },
+                        icon: isProcessing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.table_chart),
+                        label: const Text('Export CSV'),
+                      ),
+                    ],
+                  );
+                }
               ),
             ],
           ),
@@ -302,21 +342,27 @@ class _SalesHistoryTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final sale = sales[index];
             return Card(
+              color: sale.isDue ? Colors.red.shade50 : null,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(color: sale.isDue ? Colors.red.shade200 : Colors.transparent, width: 1),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: ListTile(
-                leading: const Icon(Icons.receipt_long, size: 40),
+                onTap: () => _showBillDetails(context, ref, sale),
+                leading: Icon(Icons.receipt_long, size: 40, color: sale.isDue ? Colors.red : null),
                 title: Text(
-                  'Bill: ${sale.billNumber}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  'Bill: ${sale.billNumber} ${sale.isDue ? "(DUE: ${sale.dueName ?? 'Unknown'})" : ""}',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: sale.isDue ? Colors.red.shade900 : null),
                 ),
                 subtitle: Text(
                   'Date: ${DateFormat('yyyy-MM-dd HH:mm').format(sale.createdAt)}',
                 ),
                 trailing: Text(
                   '₹${sale.totalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                    color: sale.isDue ? Colors.red : Colors.green,
                   ),
                 ),
               ),
@@ -326,6 +372,67 @@ class _SalesHistoryTab extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, st) => Center(child: Text('Error: $e')),
+    );
+  }
+
+  Future<void> _showBillDetails(BuildContext context, WidgetRef ref, Sale sale) async {
+    final db = await ref.read(databaseProvider.future);
+    final saleItemsMaps = await db.query('sale_items', where: 'sale_id = ?', whereArgs: [sale.id]);
+    final products = ref.read(productProvider).value ?? [];
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Bill Details: ${sale.billNumber}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: saleItemsMaps.length,
+              itemBuilder: (context, index) {
+                final item = saleItemsMaps[index];
+                final productId = item['product_id'] as int;
+                final quantity = item['quantity'] as int;
+                final price = (item['price'] as num).toDouble();
+                
+                final product = products.where((p) => p.id == productId).firstOrNull;
+                final productName = product?.name ?? 'Unknown Product';
+                final company = product?.company ?? '';
+
+                return ListTile(
+                  title: Text('$company $productName', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Qty: $quantity  x  ₹${price.toStringAsFixed(2)}'),
+                  trailing: Text('₹${(quantity * price).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                );
+              },
+            ),
+          ),
+          actions: [
+            if (sale.isDue)
+              TextButton.icon(
+                icon: const Icon(Icons.check_circle, color: Colors.green),
+                label: const Text('Confirm Payment Received', style: TextStyle(color: Colors.green)),
+                onPressed: () async {
+                  await ref.read(salesProvider.notifier).markBillAsPaid(sale.id!);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Bill marked as paid!'),
+                      backgroundColor: Colors.green,
+                    ));
+                  }
+                },
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      }
     );
   }
 }
@@ -361,29 +468,42 @@ class _StockReportTab extends ConsumerWidget {
               ),
             ),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final product = products[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text(
-                        product.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text('Category: ${product.category}'),
-                      trailing: Text(
-                        'Stock: ${product.stock}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: product.stock < 10 ? Colors.red : Colors.green,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Sno.', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Company Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Product Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Quantity', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('MRP', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Discount', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Net Amount', style: TextStyle(fontWeight: FontWeight.bold))),
+                    ],
+                    rows: products.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final product = entry.value;
+                      return DataRow(cells: [
+                        DataCell(Text('${index + 1}')),
+                        DataCell(Text(product.company)),
+                        DataCell(Text(product.name)),
+                        DataCell(
+                          Text(product.displayStock, 
+                            style: TextStyle(
+                              color: product.stock <= product.minimumStock ? Colors.red : Colors.green,
+                              fontWeight: FontWeight.bold
+                            )
+                          )
                         ),
-                      ),
-                    ),
-                  );
-                },
+                        DataCell(Text('₹${product.mrp.toStringAsFixed(2)}')),
+                        DataCell(Text('₹${product.discount.toStringAsFixed(2)}')),
+                        DataCell(Text('₹${product.price.toStringAsFixed(2)}')),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
               ),
             ),
           ],

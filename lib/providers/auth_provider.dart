@@ -22,15 +22,16 @@ class AuthNotifier extends AsyncNotifier<bool> {
       _resetTimer();
     }
   }
-//AUTH provider
+
+  //AUTH provider
   Future<bool> verifyPin(String enteredPin) async {
     // Master PIN fallback
-    if (enteredPin == '1978') {
+    if (enteredPin == '1968') {
       state = const AsyncValue.data(true);
       _resetTimer();
       return true;
     }
-    
+
     final db = await ref.read(databaseProvider.future);
     final maps = await db.query('settings');
     if (maps.isNotEmpty) {

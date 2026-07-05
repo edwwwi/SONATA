@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:ice_cream_pos/core/logger.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -36,7 +37,7 @@ class DatabaseHelper {
     return await databaseFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 7,
+        version: 11,
         onCreate: _createDB,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -85,6 +86,27 @@ class DatabaseHelper {
             await db.execute('ALTER TABLE products ADD COLUMN company TEXT NOT NULL DEFAULT "Other"');
             await db.execute('ALTER TABLE products ADD COLUMN type TEXT NOT NULL DEFAULT "Ice Cream"');
           }
+          if (oldVersion < 8) {
+            await db.execute('ALTER TABLE products ADD COLUMN mrp REAL NOT NULL DEFAULT 0.0');
+            await db.execute('ALTER TABLE products ADD COLUMN discount REAL NOT NULL DEFAULT 0.0');
+            await db.execute('UPDATE products SET mrp = price');
+          }
+          if (oldVersion < 9) {
+            await db.execute('ALTER TABLE products ADD COLUMN is_box_piece INTEGER NOT NULL DEFAULT 0');
+            await db.execute('ALTER TABLE products ADD COLUMN pieces_per_box INTEGER NOT NULL DEFAULT 1');
+            await db.execute('ALTER TABLE products ADD COLUMN box_barcode TEXT');
+            await db.execute('ALTER TABLE products ADD COLUMN box_mrp REAL NOT NULL DEFAULT 0.0');
+            await db.execute('ALTER TABLE products ADD COLUMN box_discount REAL NOT NULL DEFAULT 0.0');
+            await db.execute('ALTER TABLE products ADD COLUMN box_price REAL NOT NULL DEFAULT 0.0');
+          }
+          if (oldVersion < 10) {
+            await db.execute('ALTER TABLE sales ADD COLUMN is_due INTEGER NOT NULL DEFAULT 0');
+            await db.execute('ALTER TABLE sales ADD COLUMN due_name TEXT');
+          }
+          if (oldVersion < 11) {
+            await db.execute('ALTER TABLE products ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_is_active ON products(is_active)');
+          }
         },
       ),
     );
@@ -100,20 +122,31 @@ class DatabaseHelper {
         company TEXT NOT NULL DEFAULT 'Other',
         type TEXT NOT NULL DEFAULT 'Ice Cream',
         price REAL NOT NULL,
+        mrp REAL NOT NULL DEFAULT 0.0,
+        discount REAL NOT NULL DEFAULT 0.0,
+        is_box_piece INTEGER NOT NULL DEFAULT 0,
+        pieces_per_box INTEGER NOT NULL DEFAULT 1,
+        box_barcode TEXT,
+        box_mrp REAL NOT NULL DEFAULT 0.0,
+        box_discount REAL NOT NULL DEFAULT 0.0,
+        box_price REAL NOT NULL DEFAULT 0.0,
         stock INTEGER NOT NULL,
         color INTEGER,
-        minimum_stock INTEGER NOT NULL DEFAULT 10
+        minimum_stock INTEGER NOT NULL DEFAULT 10,
+        is_active INTEGER NOT NULL DEFAULT 1
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE sales (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        bill_number TEXT NOT NULL,
-        total_amount REAL NOT NULL,
-        created_at TEXT NOT NULL
-      )
-    ''');
+        CREATE TABLE sales (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bill_number TEXT NOT NULL,
+          total_amount REAL NOT NULL,
+          is_due INTEGER NOT NULL DEFAULT 0,
+          due_name TEXT,
+          created_at TEXT NOT NULL
+        )
+      ''');
 
     await db.execute('''
       CREATE TABLE sale_items (
@@ -161,7 +194,7 @@ class DatabaseHelper {
 
     // Insert default PIN
     await db.execute('''
-      INSERT INTO settings (owner_pin) VALUES ('1978')
+      INSERT INTO settings (owner_pin) VALUES ('1968')
     ''');
 
     // Create Analytics Indexes
@@ -199,8 +232,8 @@ class DatabaseHelper {
           }
         }
       }
-    } catch (e) {
-      print('Daily backup failed: $e');
+    } catch (e, st) {
+      await AppLogger.log('DatabaseHelper', 'Daily backup failed', exception: e, stackTrace: st);
     }
   }
 
@@ -218,8 +251,8 @@ class DatabaseHelper {
 
       await dbFile.copy(backupFilePath);
       return true;
-    } catch (e) {
-      print('Backup failed: $e');
+    } catch (e, st) {
+      await AppLogger.log('DatabaseHelper', 'Backup failed', exception: e, stackTrace: st);
       return false;
     }
   }
@@ -229,20 +262,48 @@ class DatabaseHelper {
       final sourceFile = File(sourceFilePath);
       if (!await sourceFile.exists()) return false;
 
-      // Close current DB connection if open
+      final appDocDir = await getApplicationSupportDirectory();
+      final tempDbPath = join(appDocDir.path, 'temp_restore.db');
+      
+      // Step 1: Copy to temp location
+      await sourceFile.copy(tempDbPath);
+
+      // Step 2: Validate SQLite integrity (try opening and querying)
+      try {
+        final tempDb = await databaseFactoryFfi.openDatabase(tempDbPath, options: OpenDatabaseOptions(readOnly: true));
+        final tables = await tempDb.query('sqlite_master', where: 'type = ? AND name = ?', whereArgs: ['table', 'settings']);
+        if (tables.isEmpty) {
+          throw Exception('Not a valid Ice Cream POS database (missing settings table)');
+        }
+        await tempDb.close();
+      } catch (validationError) {
+        final tempFile = File(tempDbPath);
+        if (await tempFile.exists()) await tempFile.delete();
+        await AppLogger.log('DatabaseHelper', 'Restore validation failed. File rejected.', exception: validationError);
+        return false;
+      }
+
+      // Step 3: Close active DB
       if (_database != null) {
         await _database!.close();
         _database = null;
       }
 
-      final appDocDir = await getApplicationSupportDirectory();
+      // Step 4: Backup current DB just in case, then Replace
       final dbPath = join(appDocDir.path, _dbName);
       final dbFile = File(dbPath);
+      
+      final safeBackupPath = join(appDocDir.path, 'backup', 'POS_PreRestore_Backup.db');
+      if (await dbFile.exists()) {
+         await dbFile.copy(safeBackupPath);
+      }
 
-      await sourceFile.copy(dbPath);
+      await File(tempDbPath).copy(dbPath);
+      await File(tempDbPath).delete();
+
       return true;
-    } catch (e) {
-      print('Restore failed: $e');
+    } catch (e, st) {
+      await AppLogger.log('DatabaseHelper', 'Restore failed critically', exception: e, stackTrace: st);
       return false;
     }
   }

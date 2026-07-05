@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ice_cream_pos/core/import_utils.dart' as import_utils;
 import 'package:ice_cream_pos/models/product.dart';
 import 'package:ice_cream_pos/providers/product_provider.dart';
 
@@ -13,6 +14,7 @@ class ProductsScreen extends ConsumerStatefulWidget {
 class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   String _searchQuery = '';
   String _selectedCategory = 'All';
+  bool _isImporting = false;
   final TextEditingController _searchController = TextEditingController();
 
   final List<String> _categories = [
@@ -42,6 +44,47 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         backgroundColor: Colors.white,
         title: const Text('Product Management', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         elevation: 0,
+        actions: [
+          if (_isImporting) 
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+            ),
+          if (!_isImporting)
+            IconButton(
+              icon: const Icon(Icons.download, color: Colors.blue),
+              tooltip: 'Download CSV Template',
+              onPressed: () async {
+                try {
+                  import_utils.ImportUtils.generateCsvTemplate();
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                }
+              },
+            ),
+          if (!_isImporting)
+            IconButton(
+              icon: const Icon(Icons.upload_file, color: Colors.green),
+              tooltip: 'Import CSV',
+              onPressed: () async {
+                setState(() => _isImporting = true);
+                try {
+                  final count = await import_utils.ImportUtils.importProductsFromCsv();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully imported $count products'), backgroundColor: Colors.green));
+                    ref.invalidate(productProvider);
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import Failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)));
+                  }
+                } finally {
+                  if (mounted) setState(() => _isImporting = false);
+                }
+              },
+            ),
+          const SizedBox(width: 8),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60.0),
           child: Container(
@@ -207,22 +250,40 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              '${product.stock}',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: isOutOfStock ? Colors.grey.shade700 : Colors.green.shade800,
+                            if (product.isBoxPiece) ...[
+                              Text(
+                                '${product.stock ~/ product.piecesPerBox} Unit',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: isOutOfStock ? Colors.grey.shade700 : Colors.green.shade800,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'In Stock',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isOutOfStock ? Colors.grey.shade700 : Colors.green.shade800,
+                              Text(
+                                '${product.stock % product.piecesPerBox} Nos',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: isOutOfStock ? Colors.grey.shade600 : Colors.green.shade600,
+                                ),
                               ),
-                            ),
+                            ] else ...[
+                              Text(
+                                '${product.stock}',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: isOutOfStock ? Colors.grey.shade700 : Colors.green.shade800,
+                                ),
+                              ),
+                              Text(
+                                'In Stock',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isOutOfStock ? Colors.grey.shade600 : Colors.green.shade600,
+                                ),
+                              ),
+                            ]
                           ],
                         ),
                       ),

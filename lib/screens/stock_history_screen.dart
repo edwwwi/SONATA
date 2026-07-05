@@ -148,6 +148,9 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
                         DataColumn(label: Text('Date & Time')),
                         DataColumn(label: Text('Company')),
                         DataColumn(label: Text('Product')),
+                        DataColumn(label: Text('MRP')),
+                        DataColumn(label: Text('Discount')),
+                        DataColumn(label: Text('Net Amount')),
                         DataColumn(label: Text('Type')),
                         DataColumn(label: Text('Qty')),
                         DataColumn(label: Text('Prev Stock')),
@@ -156,9 +159,17 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
                       ],
                       rows: filteredMovements.map((m) {
                         String company = 'Unknown';
+                        double mrp = 0.0;
+                        double discount = 0.0;
+                        double price = 0.0;
                         if (productState.hasValue) {
                           try {
-                            company = productState.value!.firstWhere((p) => p.id == m.productId).company;
+                            final p = productState.value!.firstWhere((p) => p.id == m.productId);
+                            company = p.company;
+                            final isUnit = m.productName.contains('(Unit)') || m.productName.contains('(Box)');
+                            mrp = isUnit ? p.boxMrp : p.mrp;
+                            discount = isUnit ? p.boxDiscount : p.discount;
+                            price = isUnit ? p.boxPrice : p.price;
                           } catch (_) {}
                         }
 
@@ -167,6 +178,9 @@ class _StockHistoryScreenState extends ConsumerState<StockHistoryScreen> {
                             DataCell(Text(DateFormat('dd MMM yyyy HH:mm').format(m.createdAt))),
                             DataCell(Text(company, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey))),
                             DataCell(Text(m.productName, style: const TextStyle(fontWeight: FontWeight.bold))),
+                            DataCell(Text('₹${mrp.toStringAsFixed(2)}')),
+                            DataCell(Text('₹${discount.toStringAsFixed(2)}')),
+                            DataCell(Text('₹${price.toStringAsFixed(2)}')),
                             DataCell(
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
