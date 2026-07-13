@@ -43,13 +43,6 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         title: const Text('Product Management', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.inventory, color: Colors.blue),
-            tooltip: 'Bulk Stock Entry',
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const BulkStockScreen()));
-            },
-          ),
           const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
@@ -145,78 +138,53 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             return const Center(child: Text('No products found.', style: TextStyle(fontSize: 18, color: Colors.grey)));
           }
 
-          return ListView.builder(
+          return GridView.builder(
             padding: const EdgeInsets.all(24),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 280,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 0.85,
+            ),
             itemCount: filtered.length,
             itemBuilder: (context, index) {
               final product = filtered[index];
               final isOutOfStock = product.stock <= 0;
               final isLowStock = product.stock > 0 && product.stock < product.minimumStock;
               
-              // Mocking a last added date for the UI
               final mockDate = DateTime.now().subtract(Duration(days: index * 2 + 1));
-              final formattedDate = '${mockDate.day}/${mockDate.month}/${mockDate.year} at ${mockDate.hour}:${mockDate.minute.toString().padLeft(2, '0')}';
+              final formattedDate = '${mockDate.day}/${mockDate.month}/${mockDate.year}';
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: isLowStock ? Colors.orange.shade50 : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isLowStock ? Colors.orange.shade200 : Colors.grey.shade200),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: product.color != null 
+                        ? Color(product.color!) 
+                        : (isLowStock ? Colors.orange.shade200 : Colors.grey.shade200),
+                    width: product.color != null ? 3.0 : 1.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Image
+                      // Prominent Stock Status
                       Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.grey[200],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: product.color != null
-                            ? Container(color: Color(product.color!))
-                            : const Icon(Icons.icecream, size: 40, color: Colors.grey),
-                      ),
-                      const SizedBox(width: 16),
-                      // Details
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${product.company} ${product.name}',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Category: ${product.type}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.update, size: 14, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Last stock added: $formattedDate',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Stock Status
-                      Container(
-                        width: 100,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                         decoration: BoxDecoration(
                           color: isOutOfStock ? Colors.grey.shade100 : (isLowStock ? Colors.orange.shade100 : Colors.green.shade50),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: isOutOfStock ? Colors.grey.shade300 : (isLowStock ? Colors.orange.shade300 : Colors.green.shade200)),
                         ),
                         child: Column(
@@ -226,7 +194,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                               Text(
                                 '${product.stock ~/ product.piecesPerBox} Unit',
                                 style: TextStyle(
-                                  fontSize: 20,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                   color: isOutOfStock ? Colors.grey.shade700 : Colors.green.shade800,
                                 ),
@@ -234,7 +202,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                               Text(
                                 '${product.stock % product.piecesPerBox} Nos',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                   color: isOutOfStock ? Colors.grey.shade600 : Colors.green.shade600,
                                 ),
@@ -243,15 +211,16 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                               Text(
                                 '${product.stock}',
                                 style: TextStyle(
-                                  fontSize: 24,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.bold,
                                   color: isOutOfStock ? Colors.grey.shade700 : (isLowStock ? Colors.orange.shade800 : Colors.green.shade800),
                                 ),
                               ),
                               Text(
-                                isLowStock ? 'Low Stock' : 'In Stock',
+                                isLowStock ? 'LOW STOCK' : 'IN STOCK',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
                                   color: isOutOfStock ? Colors.grey.shade600 : (isLowStock ? Colors.orange.shade800 : Colors.green.shade600),
                                 ),
                               ),
@@ -259,7 +228,37 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                           ],
                         ),
                       ),
-
+                      const SizedBox(height: 16),
+                      // Details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${product.company} ${product.name}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              product.type,
+                              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                            ),
+                            const Spacer(),
+                            Row(
+                              children: [
+                                const Icon(Icons.update, size: 12, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Added: $formattedDate',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
