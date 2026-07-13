@@ -106,5 +106,5 @@ flutter:
 flutter_launcher_icons:
   windows:
     generate: true
-    image_path: "assets/images/sonata-icecream-logo.png" 
+    image_path: "assets/images/images.jpg" 
     icon_size: 256
