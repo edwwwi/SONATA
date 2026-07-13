@@ -4,10 +4,17 @@ import 'package:ice_cream_pos/core/database.dart';
 import 'package:ice_cream_pos/core/theme.dart';
 import 'package:ice_cream_pos/screens/shell_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:windows_single_instance/windows_single_instance.dart';
 import 'dart:io';
 
-void main() async {
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  if (Platform.isWindows) {
+    await WindowsSingleInstance.ensureSingleInstance(args, "ice_cream_pos_sonata", onSecondWindow: (args) {
+      // Logic when user tries to open a second instance
+    });
+  }
   
   if (Platform.isWindows || Platform.isLinux) {
     sqfliteFfiInit();

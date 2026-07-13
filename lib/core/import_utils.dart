@@ -6,6 +6,14 @@ import 'package:ice_cream_pos/core/logger.dart';
 import 'package:ice_cream_pos/models/product.dart';
 
 class ImportUtils {
+  static String toTitleCase(String str) {
+    if (str.isEmpty) return str;
+    return str.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   static const List<String> csvHeaders = [
     'Name',
     'Barcode',
@@ -22,7 +30,8 @@ class ImportUtils {
     'Box Barcode',
     'Box Price',
     'Box MRP',
-    'Box Discount'
+    'Box Discount',
+    'Colour'
   ];
 
   /// Generates and saves a blank CSV template
@@ -46,7 +55,8 @@ class ImportUtils {
         '',
         '0.0',
         '0.0',
-        '0.0'
+        '0.0',
+        'White'
       ]);
 
       String csvData = const ListToCsvConverter().convert(rows);
@@ -109,7 +119,7 @@ class ImportUtils {
           }
         }
 
-        final name = rowData['Name'] ?? '';
+        final name = toTitleCase(rowData['Name'] ?? '');
         if (name.isEmpty) throw Exception("Row ${i + 1}: Name cannot be empty.");
 
         final priceStr = rowData['Price'] ?? '0';
@@ -136,12 +146,41 @@ class ImportUtils {
         final isBoxPieceStr = rowData['Is Box Piece (Yes/No)']?.toString().toLowerCase() ?? 'no';
         final isBoxPiece = isBoxPieceStr == 'yes' || isBoxPieceStr == 'true' || isBoxPieceStr == '1';
 
+        final colourStr = rowData['Colour']?.toString().trim().toLowerCase() ?? '';
+        int? productColour;
+        if (colourStr.isNotEmpty) {
+          switch (colourStr) {
+            case 'red': productColour = 0xFFF44336; break;
+            case 'green': productColour = 0xFF4CAF50; break;
+            case 'blue': productColour = 0xFF2196F3; break;
+            case 'brown': productColour = 0xFF795548; break;
+            case 'white': productColour = 0xFFFFFFFF; break;
+            case 'coffee': productColour = 0xFF6F4E37; break;
+            case 'pista': productColour = 0xFF93C572; break;
+            case 'pink': productColour = 0xFFE91E63; break;
+            case 'yellow': productColour = 0xFFFFEB3B; break;
+            case 'orange': productColour = 0xFFFF9800; break;
+            case 'black': productColour = 0xFF000000; break;
+            case 'purple': productColour = 0xFF9C27B0; break;
+            // Additional Ice Cream Flavours
+            case 'strawberry': productColour = 0xFFFF80AB; break;
+            case 'mango': productColour = 0xFFFFCA28; break;
+            case 'butterscotch': productColour = 0xFFFFD54F; break;
+            case 'chocolate': productColour = 0xFF3E2723; break;
+            case 'mint': productColour = 0xFF69F0AE; break;
+            case 'vanilla': productColour = 0xFFFFF9C4; break;
+            case 'blueberry': productColour = 0xFF5C6BC0; break;
+            case 'caramel': productColour = 0xFFFF8F00; break;
+            default: productColour = null;
+          }
+        }
+
         parsedProducts.add(Product(
           name: name,
           barcode: barcode!.isEmpty ? null : barcode,
-          category: rowData['Category']?.toString().isEmpty ?? true ? 'Uncategorized' : rowData['Category'],
-          company: rowData['Company']?.toString().isEmpty ?? true ? 'Other' : rowData['Company'],
-          type: rowData['Type']?.toString().isEmpty ?? true ? 'Ice Cream' : rowData['Type'],
+          category: toTitleCase(rowData['Category']?.toString().isEmpty ?? true ? 'Uncategorized' : rowData['Category']),
+          company: toTitleCase(rowData['Company']?.toString().isEmpty ?? true ? 'Other' : rowData['Company']),
+          type: toTitleCase(rowData['Type']?.toString().isEmpty ?? true ? 'Ice Cream' : rowData['Type']),
           price: price,
           mrp: double.tryParse(rowData['MRP'] ?? '0') ?? price,
           discount: double.tryParse(rowData['Discount'] ?? '0') ?? 0.0,
@@ -153,6 +192,7 @@ class ImportUtils {
           boxPrice: double.tryParse(rowData['Box Price'] ?? '0') ?? 0.0,
           boxMrp: double.tryParse(rowData['Box MRP'] ?? '0') ?? 0.0,
           boxDiscount: double.tryParse(rowData['Box Discount'] ?? '0') ?? 0.0,
+          color: productColour,
           isActive: true, // Always active on import
         ));
       }

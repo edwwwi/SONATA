@@ -136,11 +136,39 @@ class _BulkStockScreenState extends ConsumerState<BulkStockScreen> {
                       return TextField(
                         controller: textEditingController,
                         focusNode: focusNode,
-                        decoration: const InputDecoration(
-                          hintText: 'Search for a product to add...',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          hintText: 'Search product or scan barcode...',
+                          prefixIcon: const Icon(Icons.search, color: Colors.blue),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
+                        onSubmitted: (value) {
+                          onFieldSubmitted(); // Trigger autocomplete's submit
+                          if (value.trim().isNotEmpty) {
+                            final searchVal = value.trim().toLowerCase();
+                            final match = products.where((p) => 
+                              (p.barcode?.toLowerCase() == searchVal) || 
+                              (p.boxBarcode?.toLowerCase() == searchVal) ||
+                              (p.name.toLowerCase() == searchVal)
+                            ).firstOrNull;
+                            
+                            if (match != null) {
+                              if (!_items.any((item) => item.product.id == match.id)) {
+                                setState(() {
+                                  _items.add(BulkStockItem(product: match));
+                                });
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Product already in the list.')),
+                                );
+                              }
+                              textEditingController.clear();
+                              focusNode.requestFocus();
+                            }
+                          }
+                        },
                       );
                     },
                     onSelected: (Product selection) {

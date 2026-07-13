@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ice_cream_pos/core/database.dart';
+import 'package:ice_cream_pos/core/import_utils.dart' as import_utils;
+import 'package:ice_cream_pos/providers/product_provider.dart';
 import 'dart:io';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _isImporting = false;
+
   Future<void> _backupDatabase() async {
     final result = await FilePicker.getDirectoryPath();
     if (result != null) {
@@ -99,11 +104,137 @@ class _SettingsScreenState extends State<SettingsScreen> {
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            const Text('Product Data Management', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.download, color: Colors.blue),
+                      title: const Text('Download CSV Template'),
+                      subtitle: const Text('Get the template for bulk product import'),
+                      trailing: ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            await import_utils.ImportUtils.generateCsvTemplate();
+                          } catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                          }
+                        },
+                        child: const Text('Download'),
+                      ),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.upload_file, color: Colors.green),
+                      title: const Text('Import Products'),
+                      subtitle: const Text('Import products from a CSV file'),
+                      trailing: ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade50, foregroundColor: Colors.green),
+                        onPressed: _isImporting ? null : () async {
+                          setState(() => _isImporting = true);
+                          try {
+                            final count = await import_utils.ImportUtils.importProductsFromCsv();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully imported $count products'), backgroundColor: Colors.green));
+                              ref.invalidate(productProvider);
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import Failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)));
+                            }
+                          } finally {
+                            if (mounted) setState(() => _isImporting = false);
+                          }
+                        },
+                        child: _isImporting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Import'),
+                      ),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.delete_forever, color: Colors.red),
+                      title: const Text('Factory Reset / Clear All Data', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Wipe all products, bills, and stock history'),
+                      trailing: ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                        onPressed: () async {
+                          final bool? confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: Column(
+                                  children: const [
+                                    Icon(Icons.warning_amber_rounded, size: 64, color: Colors.red),
+                                    SizedBox(height: 16),
+                                    Text('CLEAR ALL DATA?', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                                content: const Text('This will permanently delete all products, bills, stock history, and all other data. It cannot be undone. Are you absolutely sure?', textAlign: TextAlign.center),
+                                actionsAlignment: MainAxisAlignment.center,
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('ERASE EVERYTHING'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                          if (confirm == true) {
+                            try {
+                              final db = await DatabaseHelper.instance.database;
+                              await db.transaction((txn) async {
+                                await txn.delete('sale_items');
+                                await txn.delete('sales');
+                                await txn.delete('stock_movements');
+                                await txn.delete('products');
+                              });
+                              if (mounted) {
+                                await showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) {
+                                    return AlertDialog(
+                                      title: const Text('Data Cleared Successfully'),
+                                      content: const Text('The application must be restarted to apply changes.'),
+                                      actions: [
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            exit(0);
+                                          },
+                                          child: const Text('Restart'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+                              }
+                            }
+                          }
+                        },
+                        child: const Text('Clear Data'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
             const Text('Database Management', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Card(
@@ -177,6 +308,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

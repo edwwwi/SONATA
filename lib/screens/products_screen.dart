@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ice_cream_pos/core/import_utils.dart' as import_utils;
 import 'package:ice_cream_pos/models/product.dart';
 import 'package:ice_cream_pos/providers/product_provider.dart';
+import 'package:ice_cream_pos/screens/bulk_stock_screen.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -10,11 +10,9 @@ class ProductsScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<ProductsScreen> createState() => _ProductsScreenState();
 }
-
 class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   String _searchQuery = '';
   String _selectedCategory = 'All';
-  bool _isImporting = false;
   final TextEditingController _searchController = TextEditingController();
 
   final List<String> _categories = [
@@ -45,44 +43,13 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         title: const Text('Product Management', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         elevation: 0,
         actions: [
-          if (_isImporting) 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
-            ),
-          if (!_isImporting)
-            IconButton(
-              icon: const Icon(Icons.download, color: Colors.blue),
-              tooltip: 'Download CSV Template',
-              onPressed: () async {
-                try {
-                  import_utils.ImportUtils.generateCsvTemplate();
-                } catch (e) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-                }
-              },
-            ),
-          if (!_isImporting)
-            IconButton(
-              icon: const Icon(Icons.upload_file, color: Colors.green),
-              tooltip: 'Import CSV',
-              onPressed: () async {
-                setState(() => _isImporting = true);
-                try {
-                  final count = await import_utils.ImportUtils.importProductsFromCsv();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully imported $count products'), backgroundColor: Colors.green));
-                    ref.invalidate(productProvider);
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import Failed: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)));
-                  }
-                } finally {
-                  if (mounted) setState(() => _isImporting = false);
-                }
-              },
-            ),
+          IconButton(
+            icon: const Icon(Icons.inventory, color: Colors.blue),
+            tooltip: 'Bulk Stock Entry',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const BulkStockScreen()));
+            },
+          ),
           const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
@@ -161,7 +128,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       ),
       body: productsState.when(
         data: (products) {
-          final filtered = products.where((p) {
+          var filtered = products.where((p) {
             final matchesCategory = _selectedCategory == 'All' || 
                                     p.company == _selectedCategory || 
                                     p.type == _selectedCategory;
@@ -170,6 +137,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                                   p.company.toLowerCase().contains(_searchQuery.toLowerCase());
             return matchesCategory && matchesSearch;
           }).toList();
+
+          // Sort by stock ascending (lowest stock first)
+          filtered.sort((a, b) => a.stock.compareTo(b.stock));
 
           if (filtered.isEmpty) {
             return const Center(child: Text('No products found.', style: TextStyle(fontSize: 18, color: Colors.grey)));
@@ -181,16 +151,18 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             itemBuilder: (context, index) {
               final product = filtered[index];
               final isOutOfStock = product.stock <= 0;
+              final isLowStock = product.stock > 0 && product.stock < product.minimumStock;
+              
               // Mocking a last added date for the UI
               final mockDate = DateTime.now().subtract(Duration(days: index * 2 + 1));
               final formattedDate = '${mockDate.day}/${mockDate.month}/${mockDate.year} at ${mockDate.hour}:${mockDate.minute.toString().padLeft(2, '0')}';
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 16),
+                margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isLowStock ? Colors.orange.shade50 : Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: isLowStock ? Colors.orange.shade200 : Colors.grey.shade200),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
@@ -243,9 +215,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                         width: 100,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          color: isOutOfStock ? Colors.grey.shade100 : Colors.green.shade50,
+                          color: isOutOfStock ? Colors.grey.shade100 : (isLowStock ? Colors.orange.shade100 : Colors.green.shade50),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isOutOfStock ? Colors.grey.shade300 : Colors.green.shade200),
+                          border: Border.all(color: isOutOfStock ? Colors.grey.shade300 : (isLowStock ? Colors.orange.shade300 : Colors.green.shade200)),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -273,14 +245,14 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
-                                  color: isOutOfStock ? Colors.grey.shade700 : Colors.green.shade800,
+                                  color: isOutOfStock ? Colors.grey.shade700 : (isLowStock ? Colors.orange.shade800 : Colors.green.shade800),
                                 ),
                               ),
                               Text(
-                                'In Stock',
+                                isLowStock ? 'Low Stock' : 'In Stock',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isOutOfStock ? Colors.grey.shade600 : Colors.green.shade600,
+                                  color: isOutOfStock ? Colors.grey.shade600 : (isLowStock ? Colors.orange.shade800 : Colors.green.shade600),
                                 ),
                               ),
                             ]

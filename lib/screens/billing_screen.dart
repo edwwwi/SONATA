@@ -423,11 +423,21 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                           final isSearching = _searchQuery.trim().isNotEmpty;
                           final matchesCategory = isSearching || _selectedCategory == 'All' || 
                                                   p.company == _selectedCategory || 
-                                                  p.type == _selectedCategory;
+                                                  p.type == _selectedCategory ||
+                                                  p.category == _selectedCategory;
                           final matchesSearch = p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
                                                 (p.barcode != null && p.barcode!.contains(_searchQuery));
                           return matchesCategory && matchesSearch;
                         }).toList();
+
+                        // Sort products without barcodes first
+                        filtered.sort((a, b) {
+                          final aHasBarcode = a.barcode != null && a.barcode!.trim().isNotEmpty;
+                          final bHasBarcode = b.barcode != null && b.barcode!.trim().isNotEmpty;
+                          if (aHasBarcode == bHasBarcode) return 0;
+                          if (!aHasBarcode) return -1; // a comes first
+                          return 1; // b comes first
+                        });
 
                         if (filtered.isEmpty) {
                           return const Center(child: Text('No products found.', style: TextStyle(fontSize: 18, color: Colors.grey)));
