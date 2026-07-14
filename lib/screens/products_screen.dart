@@ -144,7 +144,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               maxCrossAxisExtent: 280,
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
-              childAspectRatio: 0.85,
+              childAspectRatio: 1.1,
             ),
             itemCount: filtered.length,
             itemBuilder: (context, index) {
@@ -178,23 +178,53 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Prominent Stock Status
+                      // Name and Category on Top
+                      Text(
+                        '${product.company} ${product.name}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              product.type,
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ),
+                          if (product.color != null)
+                            Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: Color(product.color!),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.grey.shade300, width: 0.5),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Compact Stock Status
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: isOutOfStock ? Colors.grey.shade100 : (isLowStock ? Colors.orange.shade100 : Colors.green.shade50),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: isOutOfStock ? Colors.grey.shade300 : (isLowStock ? Colors.orange.shade300 : Colors.green.shade200)),
                         ),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             if (product.isBoxPiece) ...[
                               Text(
                                 '${product.stock ~/ product.piecesPerBox} Unit',
                                 style: TextStyle(
-                                  fontSize: 22,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: isOutOfStock ? Colors.grey.shade700 : Colors.green.shade800,
                                 ),
@@ -202,7 +232,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                               Text(
                                 '${product.stock % product.piecesPerBox} Nos',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: isOutOfStock ? Colors.grey.shade600 : Colors.green.shade600,
                                 ),
@@ -211,7 +241,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                               Text(
                                 '${product.stock}',
                                 style: TextStyle(
-                                  fontSize: 28,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                   color: isOutOfStock ? Colors.grey.shade700 : (isLowStock ? Colors.orange.shade800 : Colors.green.shade800),
                                 ),
@@ -219,7 +249,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                               Text(
                                 isLowStock ? 'LOW STOCK' : 'IN STOCK',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   color: isOutOfStock ? Colors.grey.shade600 : (isLowStock ? Colors.orange.shade800 : Colors.green.shade600),
                                 ),
@@ -228,36 +258,18 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      // Details
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${product.company} ${product.name}',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              product.type,
-                              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                            ),
-                            const Spacer(),
-                            Row(
-                              children: [
-                                const Icon(Icons.update, size: 12, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Added: $formattedDate',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      const Spacer(),
+                      const SizedBox(height: 8),
+                      // Added Date
+                      Row(
+                        children: [
+                          const Icon(Icons.update, size: 12, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Added: $formattedDate',
+                            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          ),
+                        ],
                       ),
                     ],
                   ),

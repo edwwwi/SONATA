@@ -5,21 +5,67 @@ import 'package:ice_cream_pos/providers/product_provider.dart';
 import 'package:ice_cream_pos/providers/stock_provider.dart';
 import 'package:ice_cream_pos/screens/bulk_stock_screen.dart';
 
-class StockScreen extends ConsumerWidget {
+class StockScreen extends ConsumerStatefulWidget {
   const StockScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StockScreen> createState() => _StockScreenState();
+}
+
+class _StockScreenState extends ConsumerState<StockScreen> {
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final productsState = ref.watch(productProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: const Text('Stock Management', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+        elevation: 0,
         actions: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: [
+                SizedBox(
+                  width: 250,
+                  height: 36,
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Search Stock...',
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
                 IconButton(
                   tooltip: 'Add Single Product',
                   icon: const Icon(Icons.add, color: Color(0xFF1E293B)),
@@ -47,55 +93,156 @@ class StockScreen extends ConsumerWidget {
       ),
       body: productsState.when(
         data: (products) {
-          if (products.isEmpty) {
+          var filtered = products.where((p) {
+            return p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                   (p.barcode != null && p.barcode!.contains(_searchQuery)) ||
+                   p.company.toLowerCase().contains(_searchQuery.toLowerCase());
+          }).toList();
+
+          filtered.sort((a, b) => a.stock.compareTo(b.stock));
+
+          if (filtered.isEmpty) {
             return const Center(child: Text('No products available.', style: TextStyle(fontSize: 20)));
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: products.length,
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(24),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 280,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: filtered.length,
             itemBuilder: (context, index) {
-              final product = products[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  onTap: () => _showAddProductDialog(context, ref, product),
-                  contentPadding: const EdgeInsets.all(16),
-                  title: Text('${product.company} ${product.name}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  subtitle: Text('Current Stock: ${product.displayStock}', style: TextStyle(fontSize: 18, color: product.stock <= product.minimumStock ? Colors.red : Colors.green)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        tooltip: 'Delete Product',
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Product'),
-                              content: Text('Are you sure you want to delete ${product.name}?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                                TextButton(
-                                  onPressed: () {
-                                    ref.read(productProvider.notifier).deleteProduct(product.id!);
-                                    Navigator.pop(ctx);
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product deleted')));
-                                  },
-                                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              final product = filtered[index];
+              final isOutOfStock = product.stock <= 0;
+              final isLowStock = product.stock > 0 && product.stock < product.minimumStock;
+
+              return InkWell(
+                onTap: () => _showAddProductDialog(context, ref, product),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isLowStock ? Colors.orange.shade50 : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: product.color != null 
+                          ? Color(product.color!) 
+                          : (isLowStock ? Colors.orange.shade200 : Colors.grey.shade200),
+                      width: product.color != null ? 3.0 : 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Name and Category on Top
+                        Text(
+                          '${product.company} ${product.name}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                product.type,
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ),
+                            if (product.color != null)
+                              Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Color(product.color!),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.grey.shade300, width: 0.5),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Compact Stock Status
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isOutOfStock ? Colors.grey.shade100 : (isLowStock ? Colors.orange.shade100 : Colors.green.shade50),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isOutOfStock ? Colors.grey.shade300 : (isLowStock ? Colors.orange.shade300 : Colors.green.shade200)),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (product.isBoxPiece) ...[
+                                Text(
+                                  '${product.stock ~/ product.piecesPerBox} Unit',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: isOutOfStock ? Colors.grey.shade700 : Colors.green.shade800,
+                                  ),
+                                ),
+                                Text(
+                                  '${product.stock % product.piecesPerBox} Nos',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isOutOfStock ? Colors.grey.shade600 : Colors.green.shade600,
+                                  ),
+                                ),
+                              ] else ...[
+                                Text(
+                                  '${product.stock}',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: isOutOfStock ? Colors.grey.shade700 : (isLowStock ? Colors.orange.shade800 : Colors.green.shade800),
+                                  ),
+                                ),
+                                Text(
+                                  isLowStock ? 'LOW STOCK' : 'IN STOCK',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isOutOfStock ? Colors.grey.shade600 : (isLowStock ? Colors.orange.shade800 : Colors.green.shade600),
+                                  ),
                                 ),
                               ],
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        // Action Buttons
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade50,
+                              foregroundColor: Colors.blue.shade700,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                             ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: () => _showAddStockDialog(context, ref, product),
-                        icon: const Icon(Icons.add_box),
-                        label: const Text('Adjust Stock'),
-                      ),
-                    ],
+                            onPressed: () => _showAddStockDialog(context, ref, product),
+                            icon: const Icon(Icons.add_box, size: 16),
+                            label: const Text('Adjust Stock', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -224,6 +371,9 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
     
     if (widget.product != null) {
       _selectedCompany = widget.product!.company;
+      if (!_companies.contains(_selectedCompany)) {
+        _companies.add(_selectedCompany);
+      }
       _selectedType = widget.product!.type;
     }
   }
@@ -321,15 +471,18 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.blue.withOpacity(0.3)),
                   ),
-                  child: SwitchListTile(
-                    title: const Text('Sold in Boxes & Pieces?', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: const Text('Check this if this item comes in a box but can be sold individually.'),
-                    value: _isBoxPiece,
-                    onChanged: (val) {
-                      setState(() {
-                        _isBoxPiece = val;
-                      });
-                    },
+                  child: Material(
+                    color: Colors.transparent,
+                    child: SwitchListTile(
+                      title: const Text('Sold in Boxes & Pieces?', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Check this if this item comes in a box but can be sold individually.'),
+                      value: _isBoxPiece,
+                      onChanged: (val) {
+                        setState(() {
+                          _isBoxPiece = val;
+                        });
+                      },
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
