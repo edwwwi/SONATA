@@ -4,7 +4,7 @@ import 'package:ice_cream_pos/providers/stock_provider.dart';
 import 'package:ice_cream_pos/providers/product_provider.dart';
 import 'package:ice_cream_pos/core/export_utils.dart';
 import 'package:intl/intl.dart';
-//stock history tab
+//stock history tab asddd
 class StockHistoryScreen extends ConsumerStatefulWidget {
   const StockHistoryScreen({super.key});
 
