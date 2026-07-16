@@ -49,9 +49,14 @@ class ProductNotifier extends AsyncNotifier<List<Product>> {
       if (product.isBoxPiece) await _validateBarcodeUniqueness(product.boxBarcode, null);
 
       final db = await ref.read(databaseProvider.future);
-      final id = await db.insert('products', product.toMap());
-      final newProduct = product.copyWith(id: id, isActive: true);
-      state = AsyncValue.data([...state.value ?? [], newProduct]);
+      int? id;
+      await db.transaction((txn) async {
+        id = await txn.insert('products', product.toMap());
+      });
+      if (id != null) {
+        final newProduct = product.copyWith(id: id, isActive: true);
+        state = AsyncValue.data([...state.value ?? [], newProduct]);
+      }
     } catch (e, st) {
       await AppLogger.log('ProductProvider', 'Failed to add product', exception: e, stackTrace: st);
       rethrow;
@@ -65,7 +70,9 @@ class ProductNotifier extends AsyncNotifier<List<Product>> {
       if (product.isBoxPiece) await _validateBarcodeUniqueness(product.boxBarcode, product.id);
 
       final db = await ref.read(databaseProvider.future);
-      await db.update('products', product.toMap(), where: 'id = ?', whereArgs: [product.id]);
+      await db.transaction((txn) async {
+        await txn.update('products', product.toMap(), where: 'id = ?', whereArgs: [product.id]);
+      });
       final updatedList = (state.value ?? []).map((p) => p.id == product.id ? product : p).toList();
       state = AsyncValue.data(updatedList);
     } catch (e, st) {
@@ -78,7 +85,9 @@ class ProductNotifier extends AsyncNotifier<List<Product>> {
     try {
       final db = await ref.read(databaseProvider.future);
       // Soft Delete
-      await db.update('products', {'is_active': 0}, where: 'id = ?', whereArgs: [id]);
+      await db.transaction((txn) async {
+        await txn.update('products', {'is_active': 0}, where: 'id = ?', whereArgs: [id]);
+      });
       final updatedList = (state.value ?? []).where((p) => p.id != id).toList();
       state = AsyncValue.data(updatedList);
     } catch (e, st) {
@@ -100,7 +109,9 @@ class ProductNotifier extends AsyncNotifier<List<Product>> {
           throw Exception('Insufficient Stock');
         }
         
-        await db.update('products', {'stock': newStock}, where: 'id = ?', whereArgs: [productId]);
+        await db.transaction((txn) async {
+          await txn.update('products', {'stock': newStock}, where: 'id = ?', whereArgs: [productId]);
+        });
         
         // Update state
         final updatedProduct = product.copyWith(stock: newStock);

@@ -57,16 +57,32 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     final matchedBox = products.where((p) => p.isBoxPiece && p.boxBarcode == value.trim()).firstOrNull;
     
     if (matchedPiece != null) {
-      if (matchedPiece.stock > 0) {
-        ref.read(cartProvider.notifier).addProduct(matchedPiece, isBoxSale: false);
+      final cartItems = ref.read(cartProvider);
+      final existingItem = cartItems.where((i) => i.product.id == matchedPiece.id && !i.isBoxSale).firstOrNull;
+      final requestedQty = (existingItem?.quantity ?? 0) + 1;
+      
+      if (requestedQty <= matchedPiece.stock) {
+        if (existingItem != null) {
+          ref.read(cartProvider.notifier).increaseQuantity(matchedPiece, isBoxSale: false);
+        } else {
+          ref.read(cartProvider.notifier).addProduct(matchedPiece, isBoxSale: false);
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product is out of stock!'), duration: Duration(seconds: 1)),
-        );
+        final msg = matchedPiece.stock == 0 ? 'Product is Out of Stock!' : 'Insufficient Stock!';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 1)));
       }
     } else if (matchedBox != null) {
-      if (matchedBox.stock >= matchedBox.piecesPerBox) {
-        ref.read(cartProvider.notifier).addProduct(matchedBox, isBoxSale: true);
+      final cartItems = ref.read(cartProvider);
+      final existingItem = cartItems.where((i) => i.product.id == matchedBox.id && i.isBoxSale).firstOrNull;
+      final requestedBoxes = (existingItem?.quantity ?? 0) + 1;
+      final requiredPieces = requestedBoxes * matchedBox.piecesPerBox;
+      
+      if (requiredPieces <= matchedBox.stock) {
+        if (existingItem != null) {
+          ref.read(cartProvider.notifier).increaseQuantity(matchedBox, isBoxSale: true);
+        } else {
+          ref.read(cartProvider.notifier).addProduct(matchedBox, isBoxSale: true);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Not enough pieces in stock for a full box! (${matchedBox.stock} left)'), duration: const Duration(seconds: 1)),
@@ -74,7 +90,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Barcode not found: ${value.trim()}'), duration: const Duration(seconds: 1)),
+        SnackBar(content: Text('Product not found.'), duration: const Duration(seconds: 1)),
       );
     }
     

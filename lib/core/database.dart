@@ -38,6 +38,16 @@ class DatabaseHelper {
       dbPath,
       options: OpenDatabaseOptions(
         version: 11,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA journal_mode = WAL');
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onOpen: (db) async {
+          final result = await db.rawQuery('PRAGMA integrity_check');
+          if (result.first.values.first.toString().toLowerCase() != 'ok') {
+            throw Exception('Database corrupted: \${result.first.values.first}');
+          }
+        },
         onCreate: _createDB,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -298,8 +308,16 @@ class DatabaseHelper {
          await dbFile.copy(safeBackupPath);
       }
 
-      await File(tempDbPath).copy(dbPath);
-      await File(tempDbPath).delete();
+      try {
+        await File(tempDbPath).copy(dbPath);
+        await File(tempDbPath).delete();
+      } catch (e) {
+        // Rollback to pre-restore backup
+        if (await File(safeBackupPath).exists()) {
+          await File(safeBackupPath).copy(dbPath);
+        }
+        throw Exception('Failed to replace active database. Rolled back. Error: $e');
+      }
 
       return true;
     } catch (e, st) {

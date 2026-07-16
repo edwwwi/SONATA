@@ -66,9 +66,19 @@ class SalesNotifier extends AsyncNotifier<List<Sale>> {
           // Fetch current stock and update inside transaction
           final productMaps = await txn.query('products', where: 'id = ?', whereArgs: [item.product.id!]);
           if (productMaps.isNotEmpty) {
-            final currentStock = productMaps.first['stock'] as int;
-            final productName = item.isBoxSale ? '${productMaps.first['name']} (Unit)' : productMaps.first['name'] as String;
-            final stockReduction = item.isBoxSale ? (item.quantity * item.product.piecesPerBox) : item.quantity;
+            final productMap = productMaps.first;
+            if (productMap['is_active'] == 0) {
+              throw Exception('Product ${item.product.name} is not active.');
+            }
+            final currentStock = productMap['stock'] as int;
+            final price = item.isBoxSale ? (productMap['box_price'] as num).toDouble() : (productMap['price'] as num).toDouble();
+            
+            if (price <= 0) {
+              throw Exception('Invalid price for ${item.product.name}. Price must be greater than zero.');
+            }
+            
+            final productName = item.isBoxSale ? '${productMap['name']} (Unit)' : productMap['name'] as String;
+            final stockReduction = item.isBoxSale ? (item.quantity * (productMap['pieces_per_box'] as int)) : item.quantity;
             final newStock = currentStock - stockReduction;
             
             if (newStock < 0) {

@@ -232,6 +232,7 @@ class _DailySalesTab extends ConsumerWidget {
                         onPressed: isProcessing ? null : () async {
                           setState(() { isProcessing = true; });
                           try {
+                            if (todaySales.isEmpty) throw Exception('No data available to export.');
                             final products = ref.read(productProvider).value ?? [];
                             await ExportUtils.exportDailyReportPdf(sales, products);
                             if (context.mounted) {
@@ -257,6 +258,7 @@ class _DailySalesTab extends ConsumerWidget {
                         onPressed: isProcessing ? null : () async {
                           setState(() { isProcessing = true; });
                           try {
+                            if (todaySales.isEmpty) throw Exception('No data available to export.');
                             await ExportUtils.exportSalesCsv(todaySales);
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -455,11 +457,21 @@ class _StockReportTab extends ConsumerWidget {
                 children: [
                   ElevatedButton.icon(
                     onPressed: () async {
-                      await ExportUtils.exportStockCsv(products);
-                      if (context.mounted)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Stock CSV Exported')),
-                        );
+                      try {
+                        if (products.isEmpty) throw Exception('No data available to export.');
+                        await ExportUtils.exportStockCsv(products);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Stock CSV Exported')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Export Failed: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
                     },
                     icon: const Icon(Icons.table_chart),
                     label: const Text('Export Stock CSV'),

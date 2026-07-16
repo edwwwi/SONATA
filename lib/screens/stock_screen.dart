@@ -326,6 +326,7 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
   late TextEditingController _discountController;
   late TextEditingController _priceController;
   late TextEditingController _stockController;
+  bool _isProcessing = false;
   
   // UOM Controllers
   bool _isBoxPiece = false;
@@ -633,37 +634,52 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
           ),
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(fontSize: 18))),
         ElevatedButton(
-          onPressed: () {
+          onPressed: _isProcessing ? null : () async {
             if (_formKey.currentState!.validate()) {
-              final product = Product(
-                id: widget.product?.id,
-                name: _nameController.text,
-                barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
-                category: _selectedType, // We can just use the type or 'Ice Cream' as category for legacy reasons
-                company: _selectedCompany,
-                type: _selectedType,
-                mrp: double.parse(_mrpController.text),
-                discount: double.parse(_discountController.text),
-                price: double.parse(_priceController.text),
-                isBoxPiece: _isBoxPiece,
-                piecesPerBox: int.tryParse(_piecesPerBoxController.text) ?? 1,
-                boxBarcode: _boxBarcodeController.text.isEmpty ? null : _boxBarcodeController.text,
-                boxMrp: double.tryParse(_boxMrpController.text) ?? 0.0,
-                boxDiscount: double.tryParse(_boxDiscountController.text) ?? 0.0,
-                boxPrice: double.tryParse(_boxPriceController.text) ?? 0.0,
-                stock: int.parse(_stockController.text),
-                color: _selectedColor,
-              );
+              setState(() => _isProcessing = true);
+              try {
+                final product = Product(
+                  id: widget.product?.id,
+                  name: _nameController.text,
+                  barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
+                  category: _selectedType, // We can just use the type or 'Ice Cream' as category for legacy reasons
+                  company: _selectedCompany,
+                  type: _selectedType,
+                  mrp: double.parse(_mrpController.text),
+                  discount: double.parse(_discountController.text),
+                  price: double.parse(_priceController.text),
+                  isBoxPiece: _isBoxPiece,
+                  piecesPerBox: int.tryParse(_piecesPerBoxController.text) ?? 1,
+                  boxBarcode: _boxBarcodeController.text.isEmpty ? null : _boxBarcodeController.text,
+                  boxMrp: double.tryParse(_boxMrpController.text) ?? 0.0,
+                  boxDiscount: double.tryParse(_boxDiscountController.text) ?? 0.0,
+                  boxPrice: double.tryParse(_boxPriceController.text) ?? 0.0,
+                  stock: int.parse(_stockController.text),
+                  color: _selectedColor,
+                );
 
-              if (widget.product == null) {
-                ref.read(productProvider.notifier).addProduct(product);
-              } else {
-                ref.read(productProvider.notifier).updateProduct(product);
+                if (widget.product == null) {
+                  await ref.read(productProvider.notifier).addProduct(product);
+                } else {
+                  await ref.read(productProvider.notifier).updateProduct(product);
+                }
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+                }
+              } finally {
+                if (context.mounted) {
+                  setState(() => _isProcessing = false);
+                }
               }
-              Navigator.pop(context);
             }
           },
-          child: const Text('Save', style: TextStyle(fontSize: 18)),
+          child: _isProcessing 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
+              : const Text('Save', style: TextStyle(fontSize: 18)),
         ),
       ],
     );
@@ -687,11 +703,19 @@ class _AddProductDialogState extends ConsumerState<_AddProductDialog> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
+            onPressed: () async {
               if (controller.text == 'DELETE') {
-                ref.read(productProvider.notifier).deleteProduct(product.id!);
-                Navigator.pop(context);
-                Navigator.pop(context);
+                try {
+                  await ref.read(productProvider.notifier).deleteProduct(product.id!);
+                  if (context.mounted) {
+                    Navigator.pop(context); // Close confirm dialog
+                    Navigator.pop(context); // Close edit dialog
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+                  }
+                }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please type exactly DELETE')));
               }
