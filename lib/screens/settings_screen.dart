@@ -5,7 +5,7 @@ import 'package:ice_cream_pos/core/database.dart';
 import 'package:ice_cream_pos/core/import_utils.dart' as import_utils;
 import 'package:ice_cream_pos/providers/product_provider.dart';
 import 'dart:io';
-
+/////settings screen 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
