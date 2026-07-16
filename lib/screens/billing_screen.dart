@@ -634,7 +634,16 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Order Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text('#B12309', style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final nextBill = ref.watch(nextBillNumberProvider);
+                        return nextBill.when(
+                          data: (billNumber) => Text('#$billNumber', style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                          loading: () => const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                          error: (_, __) => const Text('Error', style: TextStyle(color: Colors.red)),
+                        );
+                      }
+                    ),
                   ],
                 ),
               ),

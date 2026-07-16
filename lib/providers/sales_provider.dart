@@ -6,6 +6,7 @@ import 'package:ice_cream_pos/providers/cart_provider.dart';
 import 'package:ice_cream_pos/providers/product_provider.dart';
 import 'package:ice_cream_pos/providers/stock_provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 import 'package:ice_cream_pos/core/logger.dart';
 
 ////SALES
@@ -34,19 +35,32 @@ class SalesNotifier extends AsyncNotifier<List<Sale>> {
       final db = await ref.read(databaseProvider.future);
       final subtotal = ref.read(cartProvider.notifier).subtotal;
       
-      final billNumber = const Uuid().v4().substring(0, 8).toUpperCase();
-      
-      final sale = Sale(
-        billNumber: billNumber,
-        totalAmount: subtotal,
-        isDue: isDue,
-        dueName: dueName,
-        createdAt: DateTime.now(),
-      );
+      final todayStr = DateFormat('ddMMyy').format(DateTime.now());
+      final prefix = 'B$todayStr-';
 
       int? finalSaleId;
+      String? finalBillNumber;
 
       await db.transaction((txn) async {
+        // Generate sequential bill number
+        final result = await txn.rawQuery("SELECT bill_number FROM sales WHERE bill_number LIKE '$prefix%' ORDER BY id DESC LIMIT 1");
+        int nextSeq = 1;
+        if (result.isNotEmpty) {
+           final lastBill = result.first['bill_number'] as String;
+           final seqPart = lastBill.split('-').last;
+           nextSeq = (int.tryParse(seqPart) ?? 0) + 1;
+        }
+        final billNumber = '$prefix$nextSeq';
+        finalBillNumber = billNumber;
+
+        final sale = Sale(
+          billNumber: billNumber,
+          totalAmount: subtotal,
+          isDue: isDue,
+          dueName: dueName,
+          createdAt: DateTime.now(),
+        );
+
         // Insert sale
         final saleId = await txn.insert('sales', sale.toMap());
         finalSaleId = saleId;
@@ -102,15 +116,24 @@ class SalesNotifier extends AsyncNotifier<List<Sale>> {
         }
       });
 
-      if (finalSaleId != null) {
+      if (finalSaleId != null && finalBillNumber != null) {
         // Invalidate products to refresh the stock amounts in UI
         ref.invalidate(productProvider);
+        ref.invalidate(nextBillNumberProvider);
         
         // Clear cart
         ref.read(cartProvider.notifier).clearCart();
         
+        final sale = Sale(
+          id: finalSaleId,
+          billNumber: finalBillNumber!,
+          totalAmount: subtotal,
+          isDue: isDue,
+          dueName: dueName,
+          createdAt: DateTime.now(),
+        );
         // Update local sales state
-        state = AsyncValue.data([sale.copyWith(id: finalSaleId), ...state.value ?? []]);
+        state = AsyncValue.data([sale, ...state.value ?? []]);
       }
     } catch (e, st) {
       await AppLogger.log('SalesProvider', 'Transaction failed and rolled back', exception: e, stackTrace: st);
@@ -143,4 +166,18 @@ class SalesNotifier extends AsyncNotifier<List<Sale>> {
 
 final salesProvider = AsyncNotifierProvider<SalesNotifier, List<Sale>>(() {
   return SalesNotifier();
+});
+
+final nextBillNumberProvider = FutureProvider.autoDispose<String>((ref) async {
+  final db = await ref.read(databaseProvider.future);
+  final todayStr = DateFormat('ddMMyy').format(DateTime.now());
+  final prefix = 'B$todayStr-';
+  final result = await db.rawQuery("SELECT bill_number FROM sales WHERE bill_number LIKE '$prefix%' ORDER BY id DESC LIMIT 1");
+  int nextSeq = 1;
+  if (result.isNotEmpty) {
+     final lastBill = result.first['bill_number'] as String;
+     final seqPart = lastBill.split('-').last;
+     nextSeq = (int.tryParse(seqPart) ?? 0) + 1;
+  }
+  return '$prefix$nextSeq';
 });
