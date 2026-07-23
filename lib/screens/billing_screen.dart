@@ -8,7 +8,7 @@ import 'package:ice_cream_pos/models/product.dart';
 
 class BillingScreen extends ConsumerStatefulWidget {
   const BillingScreen({super.key});
-
+//BILLING SCREEN
   @override
   ConsumerState<BillingScreen> createState() => _BillingScreenState();
 }
