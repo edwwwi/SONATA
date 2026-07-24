@@ -3,7 +3,7 @@ class DailySalesSummary {
   final double totalSales;
   final int billCount;
   final int itemsSold;
-
+//Main Heatmap
   DailySalesSummary({
     required this.date,
     required this.totalSales,
