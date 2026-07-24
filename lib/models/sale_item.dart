@@ -4,7 +4,7 @@ class SaleItem {
   final int productId;
   final int quantity;
   final double price;
-
+//Sales
   SaleItem({
     this.id,
     required this.saleId,
